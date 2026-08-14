@@ -1,4 +1,5 @@
 import './style.css';
 import './v21.css';
-import {bootV21} from './v21-runtime.js';
-bootV21();
+import './v22.css';
+import {bootV22} from './v22-runtime.js';
+bootV22();
