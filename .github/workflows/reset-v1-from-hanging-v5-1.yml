@@ -1,0 +1,33 @@
+name: Reset Logo Crew V1 from Hanging Media V5.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/reset-v1-from-hanging-v5-1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  transplant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proven V5.1 donor
+        uses: actions/checkout@v4
+        with:
+          repository: Juanmaes83/PONER-A-SECAR-LA-COLADA-INTERACTIVA-PERSONALIZADA
+          ref: 5e3cee8b6c244aa9a8f8aaa491528c35e0dea1b0
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Push exact donor foundation into target V1 branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote remove origin
+          git remote add target "https://x-access-token:${GH_TOKEN}@github.com/Juanmaes83/PAINT-YOUR-LOGO-WALL.git"
+          git push target HEAD:refs/heads/agent/logo-crew-v1 --force
