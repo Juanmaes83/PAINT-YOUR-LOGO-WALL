@@ -23,7 +23,7 @@ export class JobManager{
   delete(i){const j=this.jobs[i];if(!j)return;if(j.media?.pause)j.media.pause();j._cleanup?.();this.scene.remove(j.mesh);j.texture.dispose();this.jobs.splice(i,1);this.layout()}
   async duplicate(i){const src=this.jobs[i];if(!src)return null;let j;if(src.fileBlob)j=await this.fromFile(src.fileBlob);else{const c=mkCanvas();c.getContext('2d').drawImage(src.source,0,0);j=this.create({name:`${src.name} copy`,source:c,type:'image'})}Object.assign(j,{name:`${src.name} copy`,scale:src.scale,height:src.height,xOffset:src.xOffset,rotation:src.rotation,duration:src.duration,fit:src.fit,living:src.living,method:src.method,reveal:src.reveal,crew:src.crew,activationDelay:src.activationDelay});this.layout();return j}
   move(i,d){const ni=i+d;if(ni<0||ni>=this.jobs.length)return i;[this.jobs[i],this.jobs[ni]]=[this.jobs[ni],this.jobs[i]];this.layout();return ni}
-  clear(){[...this.jobs].forEach((_,i)=>this.delete(this.jobs.length-1-i));this.jobs=[]}
+  clear(){while(this.jobs.length)this.delete(this.jobs.length-1)}
   resetPlayback(){this.jobs.forEach(j=>{j.progress=0;j.activated=false;j.activationCount=0;j.playFailures=0;if(j.type==='video')resetVideo(j)})}
   totalDuration(){return Math.max(1,this.jobs.reduce((a,j)=>a+j.duration,0))}
   resolveTime(t){let acc=0;for(let i=0;i<this.jobs.length;i++){if(t<acc+this.jobs[i].duration)return{i,local:(t-acc)/this.jobs[i].duration,start:acc};acc+=this.jobs[i].duration}return{i:Math.max(0,this.jobs.length-1),local:.999,start:Math.max(0,acc-(this.jobs.at(-1)?.duration||0))}}
