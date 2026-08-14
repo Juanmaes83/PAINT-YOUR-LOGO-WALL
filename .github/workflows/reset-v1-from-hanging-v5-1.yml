@@ -19,15 +19,22 @@ jobs:
         with:
           repository: Juanmaes83/PONER-A-SECAR-LA-COLADA-INTERACTIVA-PERSONALIZADA
           ref: 5e3cee8b6c244aa9a8f8aaa491528c35e0dea1b0
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
 
-      - name: Push exact donor foundation into target V1 branch
+      - name: Create clean product snapshot
+        run: |
+          rm -rf .github/workflows
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan logo-crew-v1-clean
+          git add -A
+          git commit -m "foundation(v1): transplant proven Hanging Media V5.1 product foundation"
+
+      - name: Force-replace target V1 branch with clean snapshot
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote remove origin
           git remote add target "https://x-access-token:${GH_TOKEN}@github.com/Juanmaes83/PAINT-YOUR-LOGO-WALL.git"
           git push target HEAD:refs/heads/agent/logo-crew-v1 --force
