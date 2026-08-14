@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite';
 export default defineConfig(()=>({
-  base: process.env.GITHUB_PAGES ? '/PAINT-YOUR-LOGO-WALL/v2-2/' : '/',
+  base: process.env.GITHUB_PAGES ? '/PAINT-YOUR-LOGO-WALL/v2-3/' : '/',
   server:{host:'0.0.0.0'},
   preview:{host:'0.0.0.0'}
 }));
