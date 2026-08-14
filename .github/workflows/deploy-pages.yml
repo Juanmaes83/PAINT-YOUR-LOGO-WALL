@@ -14,7 +14,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -29,6 +29,11 @@ jobs:
         with:
           ref: agent/logo-crew-v2
           path: v2-src
+      - name: Checkout V2.1
+        uses: actions/checkout@v4
+        with:
+          ref: agent/logo-crew-v2-1
+          path: v21-src
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -38,27 +43,35 @@ jobs:
 
       - name: Build V1
         working-directory: v1-src
-        env:
-          GITHUB_PAGES: true
+        env: { GITHUB_PAGES: true }
         run: |
           npm install
           npm run build
           node --check src/main.js
       - name: Build V2
         working-directory: v2-src
-        env:
-          GITHUB_PAGES: true
+        env: { GITHUB_PAGES: true }
         run: |
           npm install
           npm run build
           node --check src/main.js
           node --check src/v2-runtime.js
           node --check src/v2-jobs.js
-          node --check src/v2-masks.js
-          node --check scripts/visual-check-v2.mjs
+      - name: Build V2.1
+        working-directory: v21-src
+        env: { GITHUB_PAGES: true }
+        run: |
+          npm install
+          npm run build
+          node --check src/main.js
+          node --check src/v21-runtime.js
+          node --check src/v21-style-engine.js
+          node --check src/v21-tools.js
+          node --check src/v2-jobs.js
+          node --check scripts/visual-check-v21.mjs
 
       - name: Install Chromium
-        working-directory: v2-src
+        working-directory: v21-src
         run: npx playwright install --with-deps chromium
 
       - name: Start V1 preview
@@ -69,8 +82,7 @@ jobs:
           cat /tmp/v1.log; exit 1
       - name: QA V1 exact subpath
         working-directory: v1-src
-        env:
-          QA_URL: http://127.0.0.1:4173/PAINT-YOUR-LOGO-WALL/
+        env: { QA_URL: http://127.0.0.1:4173/PAINT-YOUR-LOGO-WALL/ }
         run: npm run verify:browser
 
       - name: Start V2 preview
@@ -81,28 +93,37 @@ jobs:
           cat /tmp/v2.log; exit 1
       - name: QA V2 exact subpath
         working-directory: v2-src
-        env:
-          PYLW_URL: http://127.0.0.1:4174/PAINT-YOUR-LOGO-WALL/v2/
+        env: { PYLW_URL: http://127.0.0.1:4174/PAINT-YOUR-LOGO-WALL/v2/ }
         run: npm run verify:browser
 
-      - name: Upload V2 QA evidence
+      - name: Start V2.1 preview
+        working-directory: v21-src
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4175 > /tmp/v21.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4175/PAINT-YOUR-LOGO-WALL/v2-1/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v21.log; exit 1
+      - name: QA V2.1 exact subpath
+        working-directory: v21-src
+        env: { PYLW_URL: http://127.0.0.1:4175/PAINT-YOUR-LOGO-WALL/v2-1/ }
+        run: npm run verify:browser
+      - name: Upload V2.1 QA evidence
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: paint-your-logo-wall-v2-validation
-          path: v2-src/artifacts
+          name: paint-your-logo-wall-v2-1-validation
+          path: v21-src/artifacts
           if-no-files-found: warn
 
       - name: Compose versioned Pages site
         run: |
-          mkdir -p deploy-site/v2
+          mkdir -p deploy-site/v2 deploy-site/v2-1
           cp -R v1-src/dist/. deploy-site/
           cp -R v2-src/dist/. deploy-site/v2/
+          cp -R v21-src/dist/. deploy-site/v2-1/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
-        with:
-          path: deploy-site
+        with: { path: deploy-site }
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
@@ -110,17 +131,19 @@ jobs:
       - name: Wait for public versions
         run: |
           for i in {1..30}; do
-            if curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/ >/dev/null; then exit 0; fi
+            if curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-1/ >/dev/null; then exit 0; fi
             sleep 2
           done
           exit 1
       - name: QA public V1
         working-directory: v1-src
-        env:
-          QA_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/
+        env: { QA_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/ }
         run: npm run verify:browser
       - name: QA public V2
         working-directory: v2-src
-        env:
-          PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/
+        env: { PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/ }
+        run: npm run verify:browser
+      - name: QA public V2.1
+        working-directory: v21-src
+        env: { PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-1/ }
         run: npm run verify:browser
