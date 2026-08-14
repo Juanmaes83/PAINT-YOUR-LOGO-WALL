@@ -4,83 +4,105 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#171717" />
-  <title>Paint Your Logo Wall — Creative Crew V1</title>
+  <title>Paint Your Logo Wall — Creative Crew V2</title>
 </head>
 <body>
 <main id="app">
-  <section id="stage-shell" class="stage-shell" aria-label="Paint Your Logo Wall live experience">
+  <section id="stage-shell" class="stage-shell" aria-label="Paint Your Logo Wall V2 live experience">
     <canvas id="stage"></canvas>
-    <div class="stage-topline"><span>WEB ANIMATIONS · LAB</span><strong>PAINT YOUR LOGO WALL / V1</strong></div>
-    <div id="job-chip" class="job-chip">JOB 01 · APPROACHING</div>
-    <div id="loading" class="loading">Preparing the wall…</div>
-    <div class="stage-hint">A CREATIVE CREW BUILDS YOUR BRAND · LOGO = IMAGE · LIVE PAINT MASK</div>
+    <div class="stage-topline"><span>WEB ANIMATIONS · LAB</span><strong>PAINT YOUR LOGO WALL / V2</strong></div>
+    <div id="job-chip" class="job-chip">WAITING FOR CONTENT</div>
+    <div id="loading" class="loading">Preparing Creative Engine V2…</div>
+    <div class="stage-hint">UPLOAD · CHOOSE METHOD · BUILD THE STORY · IMAGE + VIDEO</div>
     <div id="toast" class="toast"></div>
+    <div id="onboarding" class="onboarding">
+      <div class="onboarding-card">
+        <p class="eyebrow">STEP 01 · CONTENT FIRST</p>
+        <h2>What should the crew create?</h2>
+        <p>Upload one or several logos, artworks, images or videos. V2 creates one Wall Job per asset and lets you reorder, duplicate and style every job.</p>
+        <label class="hero-upload" for="asset-upload">+ UPLOAD IMAGES / VIDEOS</label>
+        <button id="use-demo" class="ghost-button" type="button">Use demo content instead</button>
+        <small>PNG · JPG · WebP · GIF · SVG · MP4 · WebM</small>
+      </div>
+    </div>
     <div class="timeline-dock">
-      <button id="play" class="transport" type="button">PAUSE</button>
+      <button id="play" class="transport" type="button">PLAY</button>
       <button id="restart" class="transport secondary" type="button">RESTART</button>
       <label>PACE <select id="pace"><option value="0.65">Slow</option><option value="1" selected>Normal</option><option value="1.45">Fast</option></select></label>
       <input id="timeline" type="range" min="0" max="1" step="0.001" value="0" />
-      <div class="activity"><span id="activity">walking to job</span><strong id="clock">00:00</strong></div>
+      <div class="activity"><span id="activity">waiting</span><strong id="clock">00:00</strong></div>
     </div>
   </section>
 
-  <aside id="authoring-panel" aria-label="Paint Your Logo Wall controls">
+  <aside id="authoring-panel" aria-label="Paint Your Logo Wall V2 controls">
     <header class="panel-header">
-      <div><p class="eyebrow">LIVE COMPONENT / V1</p><h1>Paint Your Logo Wall</h1></div>
+      <div><p class="eyebrow">CREATIVE ENGINE / V2</p><h1>Paint Your Logo Wall</h1></div>
       <button id="reset-project" class="icon-button" type="button">↺</button>
     </header>
 
     <section class="control-section accent-section">
-      <div class="section-title-row"><h2>Content / Wall Jobs</h2><span id="selected-item-label" class="selected-chip">Job 01</span></div>
-      <label>Selected job <select id="job-select"><option value="0">01 · North</option><option value="1">02 · Field</option><option value="2">03 · Mono</option><option value="3">04 · Studio</option><option value="4">05 · Signal</option></select></label>
-      <label class="upload-button" for="asset-upload">+ Add logo / image</label>
-      <input id="asset-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg" hidden />
-      <div id="asset-status" class="asset-status">5 demo assets · logo and image share one pipeline</div>
-      <label>Logo scale <output id="out-logo-scale">1.00</output><input id="logo-scale" type="range" min="0.55" max="1.45" step="0.01" value="1" /></label>
-      <label>Job height <output id="out-job-height">0.00</output><input id="job-height" type="range" min="-0.7" max="0.7" step="0.01" value="0" /></label>
+      <div class="section-title-row"><h2>01 · Content / Jobs</h2><span id="job-count" class="selected-chip">0 Jobs</span></div>
+      <label class="upload-button" for="asset-upload">+ Add images / videos</label>
+      <input id="asset-upload" type="file" accept="image/*,video/mp4,video/webm,.svg" multiple hidden />
+      <div id="asset-status" class="asset-status">Upload content to begin. Images and videos share one asset pipeline.</div>
+      <div id="job-list" class="job-list"></div>
+      <div class="button-row three"><button id="add-demo-job" class="secondary-button" type="button">+ Demo</button><button id="duplicate-job" class="secondary-button" type="button">Duplicate</button><button id="delete-job" class="danger-button" type="button">Delete</button></div>
     </section>
 
     <section class="control-section">
-      <h2>Creative Crew</h2>
-      <label>Creator <select id="crew-select"><option value="aya">AYA · Studio Painter</option><option value="noa">NOA · Editorial Painter</option><option value="mimo">MIMO · Expressionist Mascot</option><option value="foxie">FOXIE · Street Artist</option><option value="lumi">LUMI · Fantasy Illustrator</option><option value="byte">BYTE · Digital Maker</option></select></label>
+      <div class="section-title-row"><h2>02 · Selected Job</h2><span id="selected-item-label" class="selected-chip">None</span></div>
+      <label>Scale <output id="out-job-scale">1.00</output><input id="job-scale" type="range" min="0.45" max="1.7" step="0.01" value="1" /></label>
+      <label>Height <output id="out-job-height">0.00</output><input id="job-height" type="range" min="-1" max="1" step="0.01" value="0" /></label>
+      <label>Rotation <output id="out-job-rotation">0°</output><input id="job-rotation" type="range" min="-18" max="18" step="1" value="0" /></label>
+      <label>Duration <output id="out-duration">8.0s</output><input id="job-duration" type="range" min="3" max="18" step="0.5" value="8" /></label>
+      <label>Fit <select id="asset-fit"><option value="contain">Contain</option><option value="cover">Cover</option></select></label>
+      <label class="toggle-row"><span>Living artwork / play video</span><input id="living-video" type="checkbox" checked /></label>
+    </section>
+
+    <section class="control-section">
+      <h2>03 · Creative Method</h2>
+      <div id="method-grid" class="method-grid">
+        <button data-method="brush" class="active"><b>Brush</b><span>Wet painter</span></button>
+        <button data-method="roller"><b>Roller</b><span>Broad coverage</span></button>
+        <button data-method="spray"><b>Spray</b><span>Graffiti / drips</span></button>
+        <button data-method="charcoal"><b>Charcoal</b><span>Dry sketch</span></button>
+        <button data-method="ink"><b>Ink / Manga</b><span>Line + hatch</span></button>
+        <button data-method="digital"><b>Digital</b><span>Grid + blocks</span></button>
+      </div>
+      <label>Reveal mask <select id="reveal-mask"><option value="horizontal">Horizontal strokes</option><option value="vertical">Vertical strokes</option><option value="radial">Radial</option><option value="contour">Contour build</option><option value="stroke">Stroke follow</option><option value="stencil">Stencil</option><option value="particles">Particles</option><option value="blocks">Digital blocks</option><option value="center">Center out</option><option value="edges">Edges in</option></select></label>
+      <label>Tool size <output id="out-brush">42</output><input id="brush-size" type="range" min="12" max="100" step="1" value="42" /></label>
+      <label>Edge / texture <output id="out-edge">0.34</output><input id="edge-texture" type="range" min="0" max="1" step="0.01" value="0.34" /></label>
+      <label>Creation speed <output id="out-paint-speed">1.00</output><input id="paint-speed" type="range" min="0.45" max="2" step="0.01" value="1" /></label>
+      <label>Material intensity <output id="out-wet">0.22</output><input id="wet" type="range" min="0" max="1" step="0.01" value="0.22" /></label>
+    </section>
+
+    <section class="control-section">
+      <h2>04 · Creative Crew</h2>
+      <label>Creator <select id="crew-select"><option value="aya">AYA · Studio Painter</option><option value="noa">NOA · Editorial Designer</option><option value="mimo">MIMO · Expressionist Mascot</option><option value="foxie">FOXIE · Graffiti Artist</option><option value="lumi">LUMI · Manga / Fantasy Illustrator</option><option value="byte">BYTE · Digital / Game Maker</option></select></label>
       <label>Character scale <output id="out-crew-scale">1.00</output><input id="crew-scale" type="range" min="0.70" max="1.25" step="0.01" value="1" /></label>
       <label>Motion intensity <output id="out-motion">1.00</output><input id="motion" type="range" min="0.45" max="1.55" step="0.01" value="1" /></label>
     </section>
 
     <section class="control-section">
-      <h2>Paint / Tool</h2>
-      <label>Tool <select id="tool"><option value="brush">Brush</option><option value="roller">Roller</option></select></label>
-      <label>Brush size <output id="out-brush">42</output><input id="brush-size" type="range" min="18" max="82" step="1" value="42" /></label>
-      <label>Edge texture <output id="out-edge">0.34</output><input id="edge-texture" type="range" min="0" max="1" step="0.01" value="0.34" /></label>
-      <label>Paint speed <output id="out-paint-speed">1.00</output><input id="paint-speed" type="range" min="0.55" max="1.7" step="0.01" value="1" /></label>
-      <label>Wet sheen <output id="out-wet">0.22</output><input id="wet" type="range" min="0" max="1" step="0.01" value="0.22" /></label>
-    </section>
-
-    <section class="control-section">
-      <h2>Background / World</h2>
+      <h2>05 · Background / World</h2>
       <div class="segmented three" id="world-presets"><button type="button" data-world="plaster" class="active">Plaster</button><button type="button" data-world="concrete">Concrete</button><button type="button" data-world="white">White Studio</button><button type="button" data-world="dark">Dark</button><button type="button" data-world="mediterranean">Mediterranean</button><button type="button" data-world="brick">Brick</button></div>
       <label>Wall tint <input id="wall-color" type="color" value="#d8cdbd" /></label>
-      <label>Texture scale <output id="out-texture">1.00</output><input id="texture-scale" type="range" min="0.5" max="4" step="0.05" value="1" /></label>
     </section>
 
     <section class="control-section">
-      <h2>Lighting</h2>
+      <h2>06 · Lighting / Camera</h2>
       <div class="segmented" id="light-presets"><button type="button" data-light="studio" class="active">Studio</button><button type="button" data-light="golden">Golden</button><button type="button" data-light="overcast">Overcast</button><button type="button" data-light="dramatic">Dramatic</button></div>
       <label>Key light <output id="out-light">3.20</output><input id="light" type="range" min="0.5" max="6" step="0.05" value="3.2" /></label>
       <label>Exposure <output id="out-exposure">1.00</output><input id="exposure" type="range" min="0.55" max="1.55" step="0.01" value="1" /></label>
+      <label>Camera distance <output id="out-camera">11.0</output><input id="camera-distance" type="range" min="8.5" max="15" step="0.1" value="11" /></label>
+      <label>Parallax <output id="out-parallax">0.08</output><input id="parallax" type="range" min="0" max="0.25" step="0.01" value="0.08" /></label>
       <label class="toggle-row"><span>Shadows</span><input id="shadows" type="checkbox" checked /></label>
     </section>
 
-    <section class="control-section">
-      <h2>Camera / Motion</h2>
-      <label>Camera distance <output id="out-camera">11.0</output><input id="camera-distance" type="range" min="8.5" max="15" step="0.1" value="11" /></label>
-      <label>Parallax <output id="out-parallax">0.08</output><input id="parallax" type="range" min="0" max="0.25" step="0.01" value="0.08" /></label>
-    </section>
-
     <section class="control-section footer-actions">
-      <h2>Project</h2>
+      <h2>Project / Output</h2>
       <div class="button-row"><button id="save-project" class="secondary-button" type="button">Save project</button><button id="capture" class="secondary-button" type="button">PNG</button></div>
-      <div id="status" class="asset-status">Ready · 5 wall jobs</div>
+      <div id="status" class="asset-status">V2 ready · waiting for content</div>
     </section>
   </aside>
 </main>
