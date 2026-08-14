@@ -1,0 +1,28 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs';import path from 'node:path';
+const url=process.env.PYLW_URL||'http://127.0.0.1:4176/PAINT-YOUR-LOGO-WALL/v2-2/';
+const fixtures=process.env.PYLW_FIXTURES||path.resolve('artifacts/fixtures');fs.mkdirSync('artifacts',{recursive:true});
+const files=['video-a.mp4','video-b.webm','video-c.mp4'].map(f=>path.join(fixtures,f));for(const f of files)if(!fs.existsSync(f))throw new Error(`Missing QA fixture ${f}`);
+const browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1680,height:980}});const errors=[];page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});page.on('pageerror',e=>errors.push(String(e)));
+const read=()=>page.evaluate(()=>window.__PYLW_V22__);
+async function seek(job,local,count=3){const frac=(job+local)/count;await page.$eval('#timeline',(el,v)=>{el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}))},frac);await page.waitForTimeout(180);return read()}
+async function selectJob(i){await page.locator('.job-row').nth(i).click();await page.waitForTimeout(80)}
+async function setJob(i,method,crew){await selectJob(i);await page.locator(`[data-method="${method}"]`).click();await page.selectOption('#crew-select',crew);await page.$eval('#job-duration',el=>{el.value='6';el.dispatchEvent(new Event('input',{bubbles:true}))});}
+try{
+ await page.goto(url,{waitUntil:'networkidle'});await page.waitForFunction(()=>window.__PYLW_V22__?.ready===true);let s=await read();if(!s.cssLoaded)throw new Error('CSS did not load');
+ await page.setInputFiles('#asset-upload',files);await page.waitForFunction(()=>window.__PYLW_V22__?.jobs===3&&window.__PYLW_V22__?.videoJobs===3,{timeout:20000});await page.waitForTimeout(300);s=await read();if(s.videos.some(v=>!['ready','live'].includes(v.status)||v.readyState<2))throw new Error(`Not all videos ready: ${JSON.stringify(s.videos)}`);
+ await setJob(0,'spray','foxie');await setJob(1,'ink','lumi');await setJob(2,'digital','byte');
+ let climb=await seek(0,.22);if(climb.phase!=='climbing'||climb.rootY<=-1.75)throw new Error(`Climbing body did not rise: ${JSON.stringify(climb)}`);await page.screenshot({path:'artifacts/v22-climbing.png',fullPage:true});
+ let create1=await seek(0,.50);if(create1.method!=='spray'||create1.crew!=='foxie'||create1.tool!=='spray')throw new Error(`Job1 assignment failed ${JSON.stringify(create1)}`);if(create1.paintProgress<=.2||create1.paintProgress>=.9)throw new Error('Job1 creation progress invalid');
+ let wink=await seek(0,.76);if(wink.phase!=='wink')throw new Error(`Wink phase missing: ${wink.phase}`);await page.screenshot({path:'artifacts/v22-wink.png',fullPage:true});
+ let hold=await seek(0,.81);if(hold.phase!=='hold final'||hold.paintProgress<.999||hold.videos[0].activated)throw new Error(`Final still/hold failed ${JSON.stringify(hold)}`);
+ let live1=await seek(0,.87);await page.waitForTimeout(650);live1=await read();if(!live1.videos[0].activated||live1.videos[0].paused||live1.videos[0].playFailures)throw new Error(`Video 1 did not activate ${JSON.stringify(live1.videos[0])}`);await page.screenshot({path:'artifacts/v22-video1-live.png',fullPage:true});
+ let down=await seek(0,.91);if(down.phase!=='descending'||down.rootY>=climb.rootY-.08)throw new Error(`Descent did not lower body ${JSON.stringify(down)}`);let move=await seek(0,.975);if(move.phase!=='relocating ladder')throw new Error('Ladder relocation phase missing');
+ let create2=await seek(1,.50);if(create2.method!=='ink'||create2.crew!=='lumi'||create2.tool!=='pen')throw new Error(`Job2 assignment failed ${JSON.stringify(create2)}`);if(create2.videos[0].paused)throw new Error('Video 1 stopped while Job2 was being created');
+ await seek(1,.87);await page.waitForTimeout(650);let live2=await read();if(!live2.videos[0].activated||!live2.videos[1].activated||live2.videos.slice(0,2).some(v=>v.paused||v.playFailures))throw new Error(`First two videos are not simultaneously live ${JSON.stringify(live2.videos)}`);
+ let create3=await seek(2,.50);if(create3.method!=='digital'||create3.crew!=='byte'||create3.tool!=='stylus')throw new Error(`Job3 assignment failed ${JSON.stringify(create3)}`);if(create3.videos.slice(0,2).some(v=>v.paused))throw new Error('Earlier videos stopped during Job3');
+ await seek(2,.87);await page.waitForTimeout(750);let all=await read();if(all.videos.length!==3||all.videos.some(v=>!v.activated||v.paused||v.playFailures||v.status!=='live'))throw new Error(`All uploaded videos are not live: ${JSON.stringify(all.videos)}`);await page.screenshot({path:'artifacts/v22-all-videos-live.png',fullPage:true});
+ await page.click('#save-project');await page.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('SAVED'));await selectJob(2);await page.click('#delete-job');await page.waitForFunction(()=>window.__PYLW_V22__?.jobs===2);await page.click('#load-project');await page.waitForFunction(()=>window.__PYLW_V22__?.jobs===3,{timeout:15000});
+ await page.click('#restart');await page.waitForTimeout(220);const restarted=await read();if(restarted.videos.some(v=>v.activated||!v.paused))throw new Error(`Restart Story did not reset video playback ${JSON.stringify(restarted.videos)}`);if(errors.length)throw new Error(`Browser errors: ${errors.join(' | ')}`);
+ fs.writeFileSync('artifacts/v22-report.json',JSON.stringify({url,climb,wink,hold,all,restarted,errors},null,2));console.log('V2.2 QA PASS',JSON.stringify({jobs:all.jobs,videos:all.videos.map(v=>({name:v.name,status:v.status,activated:v.activated,paused:v.paused,failures:v.playFailures})),climbRise:climb.rootY,finalPhase:all.phase},null,2));
+}finally{await browser.close()}
