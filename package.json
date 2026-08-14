@@ -1,9 +1,9 @@
 {
   "name":"paint-your-logo-wall",
-  "version":"2.2.0",
+  "version":"2.3.0",
   "private":true,
   "type":"module",
-  "scripts":{"dev":"vite --host 0.0.0.0","build":"vite build","preview":"vite preview --host 0.0.0.0","verify:browser":"node scripts/visual-check-v22.mjs"},
+  "scripts":{"dev":"vite --host 0.0.0.0","build":"vite build","preview":"vite preview --host 0.0.0.0","verify:browser":"node scripts/visual-check-v23.mjs"},
   "dependencies":{"three":"0.169.0"},
   "devDependencies":{"playwright":"^1.54.2","vite":"^8.2.0"}
 }
