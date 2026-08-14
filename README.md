@@ -1,7 +1,21 @@
-# PONER A SECAR LA COLADA — experiencia interactiva personalizable
+# PAINT YOUR LOGO WALL
 
-Repositorio de reconstrucción de una experiencia WebGL de medios colgantes e interactivos.
+V1 rebuild on the proven Hanging Media V5.1 visual/runtime foundation.
 
-Este proyecto reutiliza capacidades probadas de repositorios donor del mismo propietario, manteniendo esos repositorios originales en solo lectura.
+## Product branch
+`agent/logo-crew-v1`
 
-Estado: bootstrap inicial. El desarrollo se realiza en rama aislada antes de cualquier promoción a `main`.
+## V1
+- premium dark authoring panel + live Three.js wall scene
+- logo/image common asset pipeline
+- 5 WallJobs
+- progressive PaintMask reveal
+- painter + ladder choreography
+- 6 Creative Crew templates: AYA, NOA, MIMO, FOXIE, LUMI, BYTE
+- world, lighting, camera, paint and project controls
+- Playwright QA on the exact GitHub Pages subpath
+
+## Removed from donor
+Rope, cloth cards, clips, carousel, fabric physics and Hanging Media-specific runtimes are not part of this repository.
+
+`main` remains baseline/infrastructure. Product work stays isolated until visual approval.

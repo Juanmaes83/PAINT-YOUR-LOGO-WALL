@@ -1,54 +1,15 @@
-import { chromium } from 'playwright';
+import {chromium} from 'playwright';
 import fs from 'node:fs/promises';
-
-await fs.mkdir('artifacts', { recursive: true });
-const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1 });
-const consoleErrors = [], pageErrors = [];
-page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
-page.on('pageerror', e => pageErrors.push(e.message));
-await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
-await page.waitForSelector('#stage');
-await page.waitForSelector('#authoring-panel');
-await page.waitForTimeout(1600);
-
-const initial = await page.evaluate(() => {
-  const canvas=document.querySelector('#stage');
-  const panel=document.querySelector('#authoring-panel');
-  return {
-    title: document.title,
-    canvasWidth: canvas?.width || 0,
-    canvasHeight: canvas?.height || 0,
-    panelWidth: Math.round(panel?.getBoundingClientRect().width || 0),
-    hasWebGL: Boolean(canvas?.getContext('webgl2') || canvas?.getContext('webgl')),
-    shapes: document.querySelectorAll('[data-surface-control="surfaceShape"] option').length,
-    hasBackgroundUpload: Boolean(document.querySelector('#background-upload')),
-    hasAudioUpload: Boolean(document.querySelector('#audio-upload')),
-    hasClipRelease: Boolean(document.querySelector('[data-control="clipRelease"]')),
-    hasRim: Boolean(document.querySelector('[data-control="rim"]')),
-    hasThreadRelief: Boolean(document.querySelector('[data-control="threadRelief"]'))
-  };
-});
-await page.screenshot({ path:'artifacts/hanging-media-v2-default.png', fullPage:true });
-
-await page.locator('[data-surface-control="surfaceShape"]').selectOption('tshirt');
-await page.locator('[data-surface-control="backing"]').uncheck();
-await page.locator('[data-control="wind"]').evaluate(el=>{el.value='0.75';el.dispatchEvent(new Event('input',{bubbles:true}));});
-await page.locator('[data-preset-group="backgroundTemplate"] [data-preset="dark-editorial"]').click();
-await page.locator('[data-preset-group="lighting"] [data-preset="golden"]').click();
-await page.locator('[data-control="rim"]').evaluate(el=>{el.value='1.4';el.dispatchEvent(new Event('input',{bubbles:true}));});
-await page.waitForTimeout(1000);
-await page.screenshot({ path:'artifacts/hanging-media-v2-creative.png', fullPage:true });
-
-const report={initial,consoleErrors,pageErrors};
-await fs.writeFile('artifacts/runtime-report-v2.json',JSON.stringify(report,null,2));
-if(!initial.title.includes('V2')) throw new Error('V2 title missing');
-if(!initial.hasWebGL) throw new Error('WebGL unavailable');
-if(initial.canvasWidth<700||initial.canvasHeight<500) throw new Error(`Canvas invalid ${initial.canvasWidth}x${initial.canvasHeight}`);
-if(initial.panelWidth<350) throw new Error(`Panel invalid ${initial.panelWidth}`);
-if(initial.shapes<10) throw new Error(`Creative shape library incomplete: ${initial.shapes}`);
-if(!initial.hasBackgroundUpload||!initial.hasAudioUpload||!initial.hasClipRelease||!initial.hasRim||!initial.hasThreadRelief) throw new Error('V2 controls missing');
-if(pageErrors.length) throw new Error(`Page errors: ${pageErrors.join(' | ')}`);
-if(consoleErrors.length) throw new Error(`Console errors: ${consoleErrors.join(' | ')}`);
-console.log(JSON.stringify(report,null,2));
-await browser.close();
+const base=process.env.QA_URL||'http://127.0.0.1:4173/PAINT-YOUR-LOGO-WALL/';
+await fs.mkdir('artifacts',{recursive:true});
+const browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1600,height:1000},deviceScaleFactor:1});
+const errors=[];page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});page.on('pageerror',e=>errors.push(e.message));
+const res=await page.goto(base,{waitUntil:'networkidle'});if(!res?.ok())throw new Error(`Page HTTP ${res?.status()}`);
+await page.waitForFunction(()=>window.__PYLW__?.ready===true,{timeout:15000});
+const initial=await page.evaluate(()=>({s:window.__PYLW__,panel:getComputedStyle(document.querySelector('#authoring-panel')),canvas:document.querySelector('#stage').getBoundingClientRect()}));
+if(initial.s.jobs!==5)throw new Error(`Expected 5 jobs, got ${initial.s.jobs}`);if(!initial.s.cssLoaded)throw new Error('CSS did not load');if(initial.canvas.width<500||initial.canvas.height<500)throw new Error('Canvas not visible');
+await page.selectOption('#crew-select','foxie');await page.waitForTimeout(250);const crew=await page.evaluate(()=>window.__PYLW__.crew);if(crew!=='foxie')throw new Error('Crew switch failed');
+await page.$eval('#timeline',el=>{el.value=.11;el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(200);await page.$eval('#timeline',el=>{el.value=.16;el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForTimeout(200);const paint=await page.evaluate(()=>window.__PYLW__);if(paint.paintProgress<=0)throw new Error(`Paint mask did not advance: ${paint.paintProgress}`);
+await page.screenshot({path:'artifacts/v1-painting.png',fullPage:true});await page.click('[data-world="dark"]');await page.waitForTimeout(250);await page.screenshot({path:'artifacts/v1-dark-world.png',fullPage:true});
+if(errors.length)throw new Error(`Browser errors: ${errors.join(' | ')}`);
+await fs.writeFile('artifacts/qa.json',JSON.stringify({url:base,initial:initial.s,paint,errors},null,2));await browser.close();console.log('Paint Your Logo Wall V1 QA passed');
