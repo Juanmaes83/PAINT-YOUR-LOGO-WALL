@@ -1,0 +1,15 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs/promises';
+const base=process.env.PYLW_URL||'http://127.0.0.1:4175/PAINT-YOUR-LOGO-WALL/v2-1/';
+await fs.mkdir('artifacts',{recursive:true});
+const browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1720,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+await page.goto(base,{waitUntil:'networkidle'});await page.waitForFunction(()=>window.__PYLW_V21__?.ready===true,{timeout:20000});
+const initial=await page.evaluate(()=>window.__PYLW_V21__);if(initial.jobs!==0)throw new Error(`Expected empty content-first state, got ${initial.jobs}`);if(initial.styles!==8)throw new Error(`Expected 8 styles, got ${initial.styles}`);if(!initial.cssLoaded)throw new Error('CSS not loaded');
+const upload=page.locator('#asset-upload');if(!(await upload.getAttribute('accept'))?.includes('video'))throw new Error('Video accept missing');if((await upload.getAttribute('multiple'))===null)throw new Error('Multi upload missing');
+await page.click('#use-demo');await page.waitForFunction(()=>window.__PYLW_V21__?.jobs===5);
+const methods=['brush','roller','spray','charcoal','ink','digital','expressionist','hyperreal'];for(const method of methods){await page.click(`[data-method="${method}"]`);await page.waitForFunction(m=>window.__PYLW_V21__?.method===m,method);const tool=await page.evaluate(()=>window.__PYLW_V21__.tool);if(!tool)throw new Error(`Tool missing for ${method}`)}
+await page.click('[data-method="spray"]');await page.locator('#timeline').evaluate(el=>{el.value='0.11';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForFunction(()=>window.__PYLW_V21__?.paintProgress>.05);let live=await page.evaluate(()=>window.__PYLW_V21__);if(live.tool!=='spray')throw new Error(`Expected spray prop, got ${live.tool}`);if(!live.beat)throw new Error('Narrative beat missing');await page.screenshot({path:'artifacts/v21-spray.png',fullPage:true});
+await page.click('[data-method="ink"]');await page.locator('#timeline').evaluate(el=>{el.value='0.1';el.dispatchEvent(new Event('input',{bubbles:true}))});await page.waitForFunction(()=>window.__PYLW_V21__?.method==='ink');live=await page.evaluate(()=>window.__PYLW_V21__);if(live.tool!=='pen')throw new Error(`Manga pen missing: ${live.tool}`);await page.screenshot({path:'artifacts/v21-manga.png',fullPage:true});
+await page.selectOption('#layout-select','mural');await page.waitForFunction(()=>window.__PYLW_V21__?.layout==='mural');await page.click('[data-world="urban"]');await page.click('[data-light="dramatic"]');await page.screenshot({path:'artifacts/v21-world.png',fullPage:true});
+await page.click('#duplicate-job');await page.waitForFunction(()=>window.__PYLW_V21__?.jobs===6);await page.click('#delete-job');await page.waitForFunction(()=>window.__PYLW_V21__?.jobs===5);
+if(errors.length)throw new Error(`Browser errors: ${errors.join(' | ')}`);console.log(JSON.stringify({ok:true,styles:8,jobs:5,tool:live.tool,beat:live.beat,layout:'mural',errors},null,2));await browser.close();
