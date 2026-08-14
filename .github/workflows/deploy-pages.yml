@@ -145,7 +145,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: paint-your-logo-wall-v2-2-validation
+          name: paint-your-logo-wall-v2-2-validation-${{ github.run_attempt }}
           path: v22-src/artifacts
           if-no-files-found: warn
 
@@ -158,10 +158,14 @@ jobs:
           cp -R v22-src/dist/. deploy-site/v2-2/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
-        with: { path: deploy-site }
+        with:
+          name: github-pages-${{ github.run_attempt }}
+          path: deploy-site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
       - name: Wait for public versions
         run: |
           for i in {1..30}; do
