@@ -14,7 +14,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 85
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -34,6 +34,9 @@ jobs:
       - name: Checkout V2.3
         uses: actions/checkout@v4
         with: { ref: agent/logo-crew-v2-3, path: v23-src }
+      - name: Checkout V3
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v3, path: v3-src }
       - name: Setup Node
         uses: actions/setup-node@v4
         with: { node-version: 22 }
@@ -97,9 +100,25 @@ jobs:
           node --check src/v21-tools.js
           node --check src/crew-library.js
           node --check scripts/visual-check-v23.mjs
+      - name: Build V3
+        working-directory: v3-src
+        env: { GITHUB_PAGES: true }
+        run: |
+          npm install
+          npm run build
+          node --check src/main.js
+          node --check src/v23-runtime.js
+          node --check src/v23-jobs.js
+          node --check src/v23-background.js
+          node --check src/v23-project-store.js
+          node --check src/v22-media.js
+          node --check src/v21-style-engine.js
+          node --check src/v21-tools.js
+          node --check src/crew-library.js
+          node --check scripts/visual-check-v23.mjs
 
       - name: Install Chromium and FFmpeg
-        working-directory: v23-src
+        working-directory: v3-src
         run: |
           npx playwright install --with-deps chromium
           sudo apt-get update -qq
@@ -122,6 +141,10 @@ jobs:
           ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=4" -vf "hue=h=180:s=1.3" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-c.mp4
           ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=1280x720:rate=30:duration=4" -vf "hue=h=250:s=.8" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-bg.mp4
           for f in artifacts/fixtures/v23-a.mp4 artifacts/fixtures/v23-b.webm artifacts/fixtures/v23-c.mp4 artifacts/fixtures/v23-bg.mp4; do ffprobe -v error -show_entries stream=codec_name,width,height -of compact "$f"; done
+      - name: Copy stable fixtures to V3
+        run: |
+          mkdir -p v3-src/artifacts
+          cp -R v23-src/artifacts/fixtures v3-src/artifacts/fixtures
 
       - name: Start V1 preview
         working-directory: v1-src
@@ -189,14 +212,35 @@ jobs:
           path: v23-src/artifacts
           if-no-files-found: warn
 
+      - name: Start V3 preview
+        working-directory: v3-src
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4178 > /tmp/v3.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v3.log; exit 1
+      - name: QA V3 cloned stable baseline
+        working-directory: v3-src
+        env:
+          PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
+          PYLW_FIXTURES: artifacts/fixtures
+        run: npm run verify:browser
+      - name: Upload V3 QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paint-your-logo-wall-v3-validation-${{ github.run_attempt }}
+          path: v3-src/artifacts
+          if-no-files-found: warn
+
       - name: Compose versioned Pages site
         run: |
-          mkdir -p deploy-site/v2 deploy-site/v2-1 deploy-site/v2-2 deploy-site/v2-3
+          mkdir -p deploy-site/v2 deploy-site/v2-1 deploy-site/v2-2 deploy-site/v2-3 deploy-site/v3
           cp -R v1-src/dist/. deploy-site/
           cp -R v2-src/dist/. deploy-site/v2/
           cp -R v21-src/dist/. deploy-site/v2-1/
           cp -R v22-src/dist/. deploy-site/v2-2/
           cp -R v23-src/dist/. deploy-site/v2-3/
+          cp -R v3-src/dist/. deploy-site/v3/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -210,7 +254,7 @@ jobs:
       - name: Wait for public versions
         run: |
           for i in {1..40}; do
-            if curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-1/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-2/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-3/ >/dev/null; then exit 0; fi
+            if curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-1/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-2/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-3/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v3/ >/dev/null; then exit 0; fi
             sleep 2
           done
           exit 1
@@ -236,5 +280,11 @@ jobs:
         working-directory: v23-src
         env:
           PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-3/
+          PYLW_FIXTURES: artifacts/fixtures
+        run: npm run verify:browser
+      - name: QA public V3 cloned stable baseline
+        working-directory: v3-src
+        env:
+          PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v3/
           PYLW_FIXTURES: artifacts/fixtures
         run: npm run verify:browser
