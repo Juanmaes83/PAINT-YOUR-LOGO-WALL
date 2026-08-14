@@ -14,30 +14,26 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout V1
         uses: actions/checkout@v4
-        with:
-          ref: agent/logo-crew-v1
-          path: v1-src
+        with: { ref: agent/logo-crew-v1, path: v1-src }
       - name: Checkout V2
         uses: actions/checkout@v4
-        with:
-          ref: agent/logo-crew-v2
-          path: v2-src
+        with: { ref: agent/logo-crew-v2, path: v2-src }
       - name: Checkout V2.1
         uses: actions/checkout@v4
-        with:
-          ref: agent/logo-crew-v2-1
-          path: v21-src
+        with: { ref: agent/logo-crew-v2-1, path: v21-src }
+      - name: Checkout V2.2
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v2-2, path: v22-src }
       - name: Setup Node
         uses: actions/setup-node@v4
-        with:
-          node-version: 22
+        with: { node-version: 22 }
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
@@ -69,10 +65,36 @@ jobs:
           node --check src/v21-tools.js
           node --check src/v2-jobs.js
           node --check scripts/visual-check-v21.mjs
+      - name: Build V2.2
+        working-directory: v22-src
+        env: { GITHUB_PAGES: true }
+        run: |
+          npm install
+          npm run build
+          node --check src/main.js
+          node --check src/v22-runtime.js
+          node --check src/v22-media.js
+          node --check src/v22-project-store.js
+          node --check src/v2-jobs.js
+          node --check src/crew-library.js
+          node --check scripts/visual-check-v22.mjs
 
-      - name: Install Chromium
-        working-directory: v21-src
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and FFmpeg
+        working-directory: v22-src
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Generate three independent V2.2 video fixtures
+        working-directory: v22-src
+        run: |
+          mkdir -p artifacts/fixtures
+          ffmpeg -loglevel error -y -f lavfi -i "color=c=red:s=640x360:d=2:r=30" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/video-a.mp4
+          ffmpeg -loglevel error -y -f lavfi -i "color=c=blue:s=640x360:d=2:r=30" -c:v libvpx-vp9 -pix_fmt yuv420p artifacts/fixtures/video-b.webm
+          ffmpeg -loglevel error -y -f lavfi -i "color=c=green:s=640x360:d=2:r=30" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/video-c.mp4
+          ffprobe -v error -show_entries stream=codec_name,width,height -of compact artifacts/fixtures/video-a.mp4
+          ffprobe -v error -show_entries stream=codec_name,width,height -of compact artifacts/fixtures/video-b.webm
+          ffprobe -v error -show_entries stream=codec_name,width,height -of compact artifacts/fixtures/video-c.mp4
 
       - name: Start V1 preview
         working-directory: v1-src
@@ -106,32 +128,44 @@ jobs:
         working-directory: v21-src
         env: { PYLW_URL: http://127.0.0.1:4175/PAINT-YOUR-LOGO-WALL/v2-1/ }
         run: npm run verify:browser
-      - name: Upload V2.1 QA evidence
+
+      - name: Start V2.2 preview
+        working-directory: v22-src
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4176 > /tmp/v22.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4176/PAINT-YOUR-LOGO-WALL/v2-2/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v22.log; exit 1
+      - name: QA V2.2 exact subpath with three videos
+        working-directory: v22-src
+        env:
+          PYLW_URL: http://127.0.0.1:4176/PAINT-YOUR-LOGO-WALL/v2-2/
+          PYLW_FIXTURES: artifacts/fixtures
+        run: npm run verify:browser
+      - name: Upload V2.2 QA evidence
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: paint-your-logo-wall-v2-1-validation
-          path: v21-src/artifacts
+          name: paint-your-logo-wall-v2-2-validation
+          path: v22-src/artifacts
           if-no-files-found: warn
 
       - name: Compose versioned Pages site
         run: |
-          mkdir -p deploy-site/v2 deploy-site/v2-1
+          mkdir -p deploy-site/v2 deploy-site/v2-1 deploy-site/v2-2
           cp -R v1-src/dist/. deploy-site/
           cp -R v2-src/dist/. deploy-site/v2/
           cp -R v21-src/dist/. deploy-site/v2-1/
-
+          cp -R v22-src/dist/. deploy-site/v2-2/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with: { path: deploy-site }
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
       - name: Wait for public versions
         run: |
           for i in {1..30}; do
-            if curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-1/ >/dev/null; then exit 0; fi
+            if curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-1/ >/dev/null && curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-2/ >/dev/null; then exit 0; fi
             sleep 2
           done
           exit 1
@@ -146,4 +180,10 @@ jobs:
       - name: QA public V2.1
         working-directory: v21-src
         env: { PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-1/ }
+        run: npm run verify:browser
+      - name: QA public V2.2 with three videos
+        working-directory: v22-src
+        env:
+          PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v2-2/
+          PYLW_FIXTURES: artifacts/fixtures
         run: npm run verify:browser
