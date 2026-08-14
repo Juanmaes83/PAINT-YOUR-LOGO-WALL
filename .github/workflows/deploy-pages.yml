@@ -1,0 +1,82 @@
+name: Deploy Paint Your Logo Wall V1
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/deploy-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout isolated V1
+        uses: actions/checkout@v4
+        with:
+          ref: agent/logo-crew-v1
+          path: v1-src
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install and build V1
+        working-directory: v1-src
+        env:
+          GITHUB_PAGES: true
+        run: |
+          npm install
+          npm run build
+          node --check src/main.js
+          node --check scripts/visual-check.mjs
+
+      - name: Install Chromium
+        working-directory: v1-src
+        run: npx playwright install --with-deps chromium
+
+      - name: Start V1 production preview
+        working-directory: v1-src
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/paint-wall-v1.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/paint-wall-v1.log
+          exit 1
+
+      - name: V1 browser production QA
+        working-directory: v1-src
+        run: npm run verify:browser
+
+      - name: Upload V1 QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paint-your-logo-wall-v1-validation
+          path: v1-src/artifacts
+          if-no-files-found: warn
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: v1-src/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
