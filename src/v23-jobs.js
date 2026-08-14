@@ -26,7 +26,7 @@ function edgeBlend(ctx,W,H){
 }
 
 export class JobManager{
-  constructor(scene){this.scene=scene;this.jobs=[];this.uid=1;this.layoutMode='gallery'}
+  constructor(scene){this.scene=scene;this.jobs=[];this.uid=1;this.layoutMode='gallery';window.__PYLW_JOB_MANAGER__=this}
   create({name='Untitled',source=null,media=null,type='image',fileBlob=null,mediaStatus='ready',posterMedia=null,crew='aya',textConfig=null}={}){
     const sourceCanvas=source||demoCanvas(this.jobs.length),mask=mkCanvas(),out=mkCanvas(),temp=mkCanvas(),texture=new THREE.CanvasTexture(out);texture.colorSpace=THREE.SRGBColorSpace;texture.minFilter=THREE.LinearFilter;
     const material=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,opacity:.98});
