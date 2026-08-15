@@ -1,6 +1,6 @@
 import {GRASS_DONOR_BLOB,GRASS_DONOR_PATH,renderGrassOriginalCore} from '../donors/grass/grass-original-core.js';
 
-const staticCache=new WeakMap();
+const staticCache=new WeakMap(),liveCache=new WeakMap();
 const probe=document.createElement('canvas');probe.width=8;probe.height=4;
 const probeCtx=probe.getContext('2d',{willReadFrequently:true});
 
@@ -21,19 +21,24 @@ export const GRASS_ADAPTER_INFO=Object.freeze({
  donorBlob:GRASS_DONOR_BLOB,
  algorithm:'source-faithful-extraction',
  stillInput:'512x256 → donor 1024x512',
- liveVideoInput:'192x96 → donor 384x192 → fitted to wall',
+ liveVideoInput:'96x48 → donor 192x96 → fitted to wall @ up to 12 donor renders/s',
  supportsImage:true,
  supportsVideo:true
 });
 
 /** Thin runtime adapter. The visual algorithm lives in grass-original-core.js. */
-export function renderGrassAdapter(out,source,{progress=1,options={}}={}){
+export function renderGrassAdapter(out,source,{progress=1,time=0,options={}}={}){
  const live=!!options.live;
  const bladeDensity=Math.max(1,Math.min(10,Math.round(options.grassBladeDensity??5)));
  let rendered;
  if(live){
-  rendered=mk(out.width,out.height);
-  renderGrassOriginalCore(rendered,source,{bladeDensity,inputWidth:192,inputHeight:96,seed:42});
+  let entry=liveCache.get(out);const wrapped=entry&&time<entry.lastTime;
+  if(!entry){entry={canvas:mk(out.width,out.height),lastTime:-Infinity,bladeDensity};liveCache.set(out,entry)}
+  if(wrapped||entry.bladeDensity!==bladeDensity||time-entry.lastTime>=1/12){
+   renderGrassOriginalCore(entry.canvas,source,{bladeDensity,inputWidth:96,inputHeight:48,seed:42});
+   entry.lastTime=time;entry.bladeDensity=bladeDensity;
+  }
+  rendered=entry.canvas;
  }else{
   const signature=sourceSignature(source);let entry=staticCache.get(source);
   if(!entry||entry.signature!==signature||entry.bladeDensity!==bladeDensity){
