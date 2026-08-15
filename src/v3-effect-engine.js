@@ -1,9 +1,11 @@
+import {renderGrassAdapter,grassAdapterSnapshot} from './v3/adapters/grass-adapter.js';
+
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const fract=v=>v-Math.floor(v);
 const noise=n=>fract(Math.sin(n*12.9898+78.233)*43758.5453);
 
-// Donor-derived V3 engines. The runtime supplies one sourceCanvas per job;
-// each engine owns the visual output for that job without the legacy mask overwriting it.
+// Remaining V3 engines are temporary approximations and are replaced one-by-one.
+// Grass is now routed to the source-faithful Escaparates Pro adapter below.
 const GRASS_PALETTE=[
  [255,255,255],[225,240,210],[200,230,180],[180,220,160],[165,210,140],[150,200,120],[135,190,105],[120,180,90],
  [105,170,75],[90,160,65],[75,145,55],[65,130,50],[55,115,45],[48,100,40],[42,85,35],[37,75,31],[32,65,26],
@@ -15,12 +17,14 @@ function clear(out){out.getContext('2d').clearRect(0,0,out.width,out.height)}
 function closestGrass(r,g,b){let best=GRASS_PALETTE[0],bd=Infinity;for(const c of GRASS_PALETTE){const d=Math.abs(c[0]-r)+Math.abs(c[1]-g)+Math.abs(c[2]-b);if(d<bd){bd=d;best=c}}return best}
 function rgba(d,i,a=1){return`rgba(${d[i]},${d[i+1]},${d[i+2]},${(d[i+3]/255)*a})`}
 
-function grass(out,source,{progress,time,intensity,edge}){
+// Legacy approximation retained only as rollback/reference. It is NOT registered.
+function grassLegacy(out,source,{progress,time,intensity,edge}){
  clear(out);if(progress<=0)return;const g=out.getContext('2d'),W=out.width,H=out.height,s=sample(source,72,36),density=2+Math.round(intensity*2),rows=s.h,cols=s.w,total=rows*cols,limit=Math.floor(total*clamp(progress));g.save();g.lineCap='round';
  for(let n=0;n<limit;n++){const x=n%cols,y=(n/cols)|0,i=(y*cols+x)*4,a=s.data[i+3]/255;if(a<.06)continue;const base=closestGrass(s.data[i],s.data[i+1],s.data[i+2]),px=(x+.5)/cols*W,py=(y+.95)/rows*H,brightness=(s.data[i]*10+s.data[i+1]*100+s.data[i+2]*100)/(210*255);
   for(let k=0;k<density;k++){const seed=n*17+k*41,jx=(noise(seed)-.5)*(2+edge*9),jy=(noise(seed+4)-.5)*(2+edge*5),len=4+brightness*20+noise(seed+9)*(8+intensity*30),rot=(noise(seed+11)-.5)*1.25+Math.sin(time*1.7+n*.013)*(.04+edge*.08),cv=noise(seed+19)*26,rr=Math.min(255,base[0]+cv),gg=Math.min(255,base[1]+cv),bb=Math.min(255,base[2]+cv);g.save();g.translate(px+jx,py+jy);g.rotate(rot);g.globalAlpha=.32+noise(seed+23)*.55;g.strokeStyle=`rgb(${rr|0},${gg|0},${bb|0})`;g.lineWidth=.7+noise(seed+27)*(1.3+intensity);g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(len*.42,-1-edge*4,len,0);g.stroke();g.restore()}}
  g.restore();
 }
+void grassLegacy;
 
 function particles(out,source,{progress,time,intensity,edge}){
  clear(out);if(progress<=0)return;const g=out.getContext('2d'),W=out.width,H=out.height,s=sample(source,96,48),gap=2,total=Math.ceil(s.w/gap)*Math.ceil(s.h/gap),limit=Math.floor(total*clamp(progress));let n=0;g.save();
@@ -45,8 +49,8 @@ function glitch(out,source,{progress,time,intensity,edge}){
  clear(out);if(progress<=0)return;const g=out.getContext('2d'),W=out.width,H=out.height,reveal=Math.floor(H*clamp(progress));g.save();g.beginPath();g.rect(0,0,W,reveal);g.clip();g.drawImage(source,0,0,W,H);const slices=16+Math.round(intensity*38),amp=8+edge*54,frame=Math.floor(time*14);for(let i=0;i<slices;i++){const y=(noise(i*19+frame)*reveal)|0,h=2+(noise(i*23+frame)*26)|0,dx=(noise(i*31+frame)-.5)*amp;g.drawImage(source,0,y,W,h,dx,y,W,h)}g.globalCompositeOperation='screen';g.globalAlpha=.18+.16*intensity;const split=3+Math.round(edge*10);g.drawImage(source,0,0,W,H,split,0,W,H);g.globalCompositeOperation='source-over';g.globalAlpha=.24;for(let y=0;y<reveal;y+=4){g.fillStyle=y%8?'rgba(0,220,255,.12)':'rgba(255,0,88,.10)';g.fillRect(0,y,W,1)}g.restore();
 }
 
-const ENGINES={grass,particles,liquid,pixel,glitch};
+const ENGINES={grass:renderGrassAdapter,particles,liquid,pixel,glitch};
 export const V3_EFFECT_METHODS=new Set(Object.keys(ENGINES));
 export function renderV3Effect(out,source,{method='particles',progress=1,time=0,intensity=.3,size=42,edge=.45,options={}}={}){const fn=ENGINES[method];if(!fn)return false;fn(out,source,{progress:clamp(progress),time:Number.isFinite(time)?time:0,intensity:clamp(intensity),size,edge:clamp(edge),options});return true}
-export function effectEngineSnapshot(method){return{method,engine:ENGINES[method]?'donor-derived-v3-engine':'legacy-technique',live:!!ENGINES[method]}}
+export function effectEngineSnapshot(method){if(method==='grass')return grassAdapterSnapshot();return{method,engine:ENGINES[method]?'temporary-v3-engine':'legacy-technique',live:!!ENGINES[method]}}
 export function effectToolPoint(method,p,W=1024,H=512){p=clamp(p);if(method==='grass')return{x:80+p*(W-160),y:H*(.78-.5*Math.sin(p*Math.PI))};if(method==='particles')return{x:W*(.5+.38*Math.cos(p*Math.PI*2)),y:H*(.5+.32*Math.sin(p*Math.PI*2))};if(method==='liquid')return{x:W*(.15+.7*p),y:H*(.5+.2*Math.sin(p*Math.PI*4))};if(method==='pixel')return{x:W*(.15+.7*p),y:H*(.2+.6*((Math.floor(p*7)%7)/6))};if(method==='glitch')return{x:W*(.1+.8*p),y:H*(.15+.7*noise(Math.floor(p*40)))};return{x:W*p,y:H*.5}}
