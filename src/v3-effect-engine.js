@@ -2,32 +2,93 @@ const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const fract=v=>v-Math.floor(v);
 const noise=n=>fract(Math.sin(n*12.9898+78.233)*43758.5453);
 
-function sampleSurface(out,source,w=128,h=64){
-  let c=out.__v3sample;if(!c){c=document.createElement('canvas');out.__v3sample=c}c.width=w;c.height=h;const g=c.getContext('2d',{willReadFrequently:true});g.clearRect(0,0,w,h);g.drawImage(source,0,0,w,h);return{w,h,data:g.getImageData(0,0,w,h).data};
+// V3 engine policy: the job owns one sourceCanvas and one effect canvas.
+// Engines below are donor-derived extractions, not UI/demo rewrites.
+// Grass: Escaparates Pro grass-image-processing-pro core palette/blade model.
+// Particles: Escaparates Pro particulate-image-pro image->particle spring/gather model.
+// Liquid: liquiddistorteverything displacement modes (refract/attract/swirl/ripple/wave).
+// Pixel: Pixel/Voxel family, source-sampled block reconstruction.
+// Glitch: Escaparates Pro glitchify family, source-sampled scanline/channel displacement.
+
+const GRASS_PALETTE=[
+ [255,255,255],[225,240,210],[200,230,180],[180,220,160],[165,210,140],[150,200,120],[135,190,105],[120,180,90],
+ [105,170,75],[90,160,65],[75,145,55],[65,130,50],[55,115,45],[48,100,40],[42,85,35],[37,75,31],[32,65,26],
+ [28,55,22],[24,45,19],[21,38,16],[18,32,13],[15,26,10],[12,20,8],[9,15,6],[5,7,3],[3,5,2],[2,3,1],[0,0,0]
+];
+
+function sample(source,w,h){
+ const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d',{willReadFrequently:true});g.clearRect(0,0,w,h);g.drawImage(source,0,0,w,h);return{w,h,data:g.getImageData(0,0,w,h).data};
 }
-function rgba(s,x,y,a=1){const ix=Math.max(0,Math.min(s.w-1,x|0)),iy=Math.max(0,Math.min(s.h-1,y|0)),i=(iy*s.w+ix)*4;return`rgba(${s.data[i]},${s.data[i+1]},${s.data[i+2]},${(s.data[i+3]/255)*a})`}
-function lum(s,x,y){const ix=Math.max(0,Math.min(s.w-1,x|0)),iy=Math.max(0,Math.min(s.h-1,y|0)),i=(iy*s.w+ix)*4;return(s.data[i]*.2126+s.data[i+1]*.7152+s.data[i+2]*.0722)/255}
-function clear(c){c.getContext('2d').clearRect(0,0,c.width,c.height)}
+function clear(out){out.getContext('2d').clearRect(0,0,out.width,out.height)}
+function closestGrass(r,g,b){let best=GRASS_PALETTE[0],bd=Infinity;for(const c of GRASS_PALETTE){const d=Math.abs(c[0]-r)+Math.abs(c[1]-g)+Math.abs(c[2]-b);if(d<bd){bd=d;best=c}}return best}
+function rgba(d,i,a=1){return`rgba(${d[i]},${d[i+1]},${d[i+2]},${(d[i+3]/255)*a})`}
 
 function grass(out,source,{progress,time,intensity,edge}){
-  const g=out.getContext('2d'),W=out.width,H=out.height,s=sampleSurface(out,source,112,56);clear(out);g.save();g.lineCap='round';const cols=84,rows=34,total=cols*rows,limit=Math.floor(total*clamp(progress));
-  for(let i=0;i<limit;i++){const x=i%cols,y=Math.floor(i/cols),sx=Math.floor(x/(cols-1)*(s.w-1)),sy=Math.floor(y/(rows-1)*(s.h-1));const alpha=s.data[(sy*s.w+sx)*4+3]/255;if(alpha<.04)continue;const px=(x+.5)/cols*W,py=(y+.78)/rows*H;const l=lum(s,sx,sy),h=4+(6+intensity*17)*(0.45+l*.75),wind=Math.sin(time*2.1+x*.31+y*.17)*(.8+edge*3.2),j=(noise(i*7.1)-.5)*5;g.strokeStyle=rgba(s,sx,sy,.83);g.lineWidth=.65+intensity*1.4;g.beginPath();g.moveTo(px+j,py);g.quadraticCurveTo(px+wind*.45,py-h*.55,px+wind,py-h);g.stroke();if(i%5===0){g.strokeStyle=rgba(s,sx,sy,.34);g.lineWidth=.55;g.beginPath();g.moveTo(px+2,py);g.quadraticCurveTo(px-wind*.25,py-h*.4,px-wind*.65,py-h*.74);g.stroke()}}
-  g.restore();
+ clear(out);if(progress<=0)return;const g=out.getContext('2d'),W=out.width,H=out.height;
+ const s=sample(source,96,48),density=2+Math.round(intensity*4),rows=s.h,cols=s.w,total=rows*cols,limit=Math.floor(total*clamp(progress));
+ g.save();g.lineCap='round';
+ for(let n=0;n<limit;n++){
+  const x=n%cols,y=(n/cols)|0,i=(y*cols+x)*4,a=s.data[i+3]/255;if(a<.06)continue;
+  const base=closestGrass(s.data[i],s.data[i+1],s.data[i+2]);const px=(x+.5)/cols*W,py=(y+.95)/rows*H;
+  const brightness=(s.data[i]*10+s.data[i+1]*100+s.data[i+2]*100)/(210*255);
+  for(let k=0;k<density;k++){
+   const seed=n*17+k*41,jx=(noise(seed)-.5)*(2+edge*9),jy=(noise(seed+4)-.5)*(2+edge*5);
+   const len=4+brightness*20+noise(seed+9)*(8+intensity*30),rot=(noise(seed+11)-.5)*1.25+Math.sin(time*1.7+n*.013)*(.04+edge*.08);
+   const cv=noise(seed+19)*26,rr=Math.min(255,base[0]+cv),gg=Math.min(255,base[1]+cv),bb=Math.min(255,base[2]+cv);
+   g.save();g.translate(px+jx,py+jy);g.rotate(rot);g.globalAlpha=.32+noise(seed+23)*.55;g.strokeStyle=`rgb(${rr|0},${gg|0},${bb|0})`;g.lineWidth=.65+noise(seed+27)*(1.2+intensity);g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(len*.42,-1-edge*4,len,0);g.stroke();g.restore();
+  }
+ }
+ g.restore();
 }
+
 function particles(out,source,{progress,time,intensity,edge}){
-  const g=out.getContext('2d'),W=out.width,H=out.height,s=sampleSurface(out,source,96,48);clear(out);g.save();const stride=2,total=Math.ceil(s.w/stride)*Math.ceil(s.h/stride),limit=Math.floor(total*clamp(progress));let n=0;for(let y=0;y<s.h;y+=stride){for(let x=0;x<s.w;x+=stride){if(n++>=limit)break;const i=(y*s.w+x)*4,a=s.data[i+3]/255;if(a<.05)continue;const tx=(x+.5)/s.w*W,ty=(y+.5)/s.h*H,seed=x*97+y*131,spread=(1-progress)*(80+edge*190),orbit=(.8+intensity*3.8),px=tx+(noise(seed)-.5)*spread+Math.sin(time*1.9+seed)*orbit,py=ty+(noise(seed+9)-.5)*spread+Math.cos(time*1.6+seed*.3)*orbit,r=1.2+intensity*2.5+noise(seed+3)*2.2;g.fillStyle=`rgba(${s.data[i]},${s.data[i+1]},${s.data[i+2]},${a*.92})`;g.beginPath();g.arc(px,py,r,0,Math.PI*2);g.fill()}if(n>=limit)break}g.restore();
+ clear(out);if(progress<=0)return;const g=out.getContext('2d'),W=out.width,H=out.height,s=sample(source,128,64);
+ const gap=2,total=Math.ceil(s.w/gap)*Math.ceil(s.h/gap),limit=Math.floor(total*clamp(progress));let n=0;
+ g.save();for(let y=0;y<s.h;y+=gap){for(let x=0;x<s.w;x+=gap){if(n>=limit)break;const i=(y*s.w+x)*4,a=s.data[i+3]/255,seed=x*97+y*131+n*7;n++;if(a<.08)continue;
+   const tx=(x+.5)/s.w*W,ty=(y+.5)/s.h*H;const edgePick=noise(seed),travel=(1-clamp(progress));let sx,sy;
+   if(edgePick<.25){sx=noise(seed+1)*W;sy=-45}else if(edgePick<.5){sx=noise(seed+1)*W;sy=H+45}else if(edgePick<.75){sx=-45;sy=noise(seed+1)*H}else{sx=W+45;sy=noise(seed+1)*H}
+   const spring=1-Math.pow(travel,2.2),wander=(2+edge*18)*Math.sin(time*1.6+seed*.07)*(1-travel*.6),px=sx+(tx-sx)*spring+wander,py=sy+(ty-sy)*spring+Math.cos(time*1.3+seed*.05)*(2+intensity*6);
+   const size=1.2+intensity*3.6+noise(seed+2)*2.2;g.globalAlpha=.5+a*.48;g.fillStyle=`rgb(${s.data[i]},${s.data[i+1]},${s.data[i+2]})`;const rad=size>4?1.8:1;g.beginPath();g.roundRect(px-size/2,py-size/2,size,size,rad);g.fill();
+  }if(n>=limit)break}
+ g.restore();
 }
-function liquid(out,source,{progress,time,intensity,edge}){
-  const g=out.getContext('2d'),W=out.width,H=out.height;clear(out);g.save();const strip=6,maxY=Math.max(strip,Math.floor(H*clamp(progress)));for(let y=0;y<maxY;y+=strip){const wave=Math.sin(y*.045+time*2.2)*((4+intensity*20)*(.45+edge)),wave2=Math.sin(y*.013-time*1.1)*(2+edge*8);g.globalAlpha=.98;g.drawImage(source,0,y,W,strip,wave+wave2,y+Math.sin(time*1.4+y*.02)*(1+intensity*3),W,strip+1)}g.globalCompositeOperation='screen';g.globalAlpha=.08+.12*intensity;for(let y=8;y<maxY;y+=34){g.fillStyle='#bfeaff';g.fillRect(0,y+Math.sin(time*2+y*.03)*4,W,1)}g.restore();
+
+function falloffWeight(dist){const t=clamp(1-dist);return t*t*(3-2*t)}
+function displacement(ndx,ndy,dist,falloff,mode,frequency){
+ const sd=dist+.0001;switch(mode){
+  case'attract':return[-ndx/sd*.7*falloff,-ndy/sd*.7*falloff];
+  case'swirl':return[-ndy/sd*.7*falloff,ndx/sd*.7*falloff];
+  case'ripple':{const w=Math.sin(dist*frequency*Math.PI);return[ndx/sd*w*.7*falloff,ndy/sd*w*.7*falloff]}
+  case'wave':return[0,Math.sin(ndx*frequency*Math.PI)*.7*falloff];
+  default:return[ndx/sd*.7*falloff,ndy/sd*.7*falloff];
+ }
 }
+function liquid(out,source,{progress,time,intensity,edge,options={}}){
+ clear(out);if(progress<=0)return;const W=out.width,H=out.height,g=out.getContext('2d'),src=sample(source,160,80);const img=new ImageData(new Uint8ClampedArray(src.data),src.w,src.h),tmp=document.createElement('canvas');tmp.width=src.w;tmp.height=src.h;tmp.getContext('2d').putImageData(img,0,0);
+ const mode=options.liquidMode||['refract','swirl','ripple','wave'][Math.min(3,Math.floor(intensity*4))],frequency=3+edge*9,amp=8+intensity*38,cx=.5+Math.sin(time*.55)*.12,cy=.5+Math.cos(time*.43)*.08,radius=.18+.42*clamp(progress);
+ g.save();g.drawImage(source,0,0,W,H);const strips=80,sh=H/strips;
+ for(let y=0;y<strips;y++)for(let x=0;x<strips*2;x++){
+   const u=(x+.5)/(strips*2),v=(y+.5)/strips,ndx=(u-cx)/radius,ndy=(v-cy)/radius,dist=Math.hypot(ndx,ndy);if(dist>1)continue;const f=falloffWeight(dist),[dx,dy]=displacement(ndx,ndy,dist,f,mode,frequency),sw=W/(strips*2)+1,sy=H/strips+1,sx=u*W-sw/2,yy=v*H-sy/2;
+   g.drawImage(source,sx,yy,sw,sy,sx+dx*amp,yy+dy*amp,sw+1,sy+1);
+ }
+ g.globalCompositeOperation='screen';g.globalAlpha=.08+.16*intensity;for(let k=0;k<8;k++){const yy=(k+.5)/8*H+Math.sin(time*1.4+k)*8;g.fillStyle='rgba(180,235,255,.45)';g.fillRect(0,yy,W,1)}g.restore();
+}
+
 function pixel(out,source,{progress,time,intensity,edge}){
-  const g=out.getContext('2d'),W=out.width,H=out.height,s=sampleSurface(out,source,64,32);clear(out);g.save();const block=Math.round(11+edge*16),cols=Math.ceil(W/block),rows=Math.ceil(H/block),order=[];for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const dx=x-cols/2,dy=y-rows/2;order.push({x,y,k:Math.hypot(dx,dy)+noise(x*31+y*47)*2})}order.sort((a,b)=>a.k-b.k);const limit=Math.floor(order.length*clamp(progress));for(let n=0;n<limit;n++){const {x,y}=order[n],sx=Math.floor((x+.5)/cols*s.w),sy=Math.floor((y+.5)/rows*s.h),i=(Math.min(s.h-1,sy)*s.w+Math.min(s.w-1,sx))*4,a=s.data[i+3]/255;if(a<.04)continue;const px=x*block,py=y*block,depth=2+intensity*8+Math.sin(time*1.7+n*.08)*1.2;g.fillStyle=`rgba(0,0,0,${.12+.12*intensity})`;g.fillRect(px+depth,py+depth,block-1,block-1);g.fillStyle=`rgba(${s.data[i]},${s.data[i+1]},${s.data[i+2]},${a})`;g.fillRect(px,py,block-1,block-1);g.globalAlpha=.16+.12*intensity;g.fillStyle='#fff';g.fillRect(px,py,block-1,1);g.globalAlpha=1}g.restore();
+ clear(out);if(progress<=0)return;const g=out.getContext('2d'),W=out.width,H=out.height,s=sample(source,96,48),block=Math.max(7,Math.round(18-edge*8)),cols=Math.ceil(W/block),rows=Math.ceil(H/block),cells=[];
+ for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const dx=x-cols/2,dy=y-rows/2;cells.push({x,y,k:Math.hypot(dx,dy)+noise(x*37+y*53)*3})}cells.sort((a,b)=>a.k-b.k);const limit=Math.floor(cells.length*clamp(progress));g.save();
+ for(let n=0;n<limit;n++){const c=cells[n],sx=Math.min(s.w-1,Math.max(0,Math.floor((c.x+.5)/cols*s.w))),sy=Math.min(s.h-1,Math.max(0,Math.floor((c.y+.5)/rows*s.h))),i=(sy*s.w+sx)*4,a=s.data[i+3]/255;if(a<.06)continue;const px=c.x*block,py=c.y*block,depth=2+intensity*9+Math.sin(time*1.2+n*.07)*1.5;g.fillStyle=`rgba(0,0,0,${.16+.16*intensity})`;g.fillRect(px+depth,py+depth,block-1,block-1);g.fillStyle=rgba(s.data,i,a);g.fillRect(px,py,block-1,block-1);g.globalAlpha=.18+.18*intensity;g.fillStyle='#fff';g.fillRect(px,py,block-1,1);g.globalAlpha=1}
+ g.restore();
 }
+
 function glitch(out,source,{progress,time,intensity,edge}){
-  const g=out.getContext('2d'),W=out.width,H=out.height;clear(out);g.save();const reveal=Math.max(1,Math.floor(H*clamp(progress)));g.beginPath();g.rect(0,0,W,reveal);g.clip();g.drawImage(source,0,0);const slices=10+Math.floor(intensity*18),amp=6+edge*38;for(let i=0;i<slices;i++){const y=Math.floor(noise(i*19+Math.floor(time*8))*H),h=2+Math.floor(noise(i*23)*22),dx=(noise(i*31+Math.floor(time*13))-.5)*amp;g.drawImage(source,0,y,W,h,dx,y,W,h)}g.globalCompositeOperation='screen';g.globalAlpha=.17+.14*intensity;const split=2+Math.round(edge*8);g.drawImage(source,0,0,W,H,split,0,W,H);g.fillStyle='rgba(255,0,88,.22)';for(let i=0;i<5;i++){const y=(noise(i*7+Math.floor(time*5))*H)|0;g.fillRect(0,y,W,1+(i%2))}g.fillStyle='rgba(0,220,255,.16)';for(let y=0;y<reveal;y+=4)g.fillRect(0,y,W,1);g.restore();
+ clear(out);if(progress<=0)return;const g=out.getContext('2d'),W=out.width,H=out.height,reveal=Math.floor(H*clamp(progress));g.save();g.beginPath();g.rect(0,0,W,reveal);g.clip();g.drawImage(source,0,0,W,H);
+ const slices=16+Math.round(intensity*38),amp=8+edge*54,frame=Math.floor(time*14);for(let i=0;i<slices;i++){const y=(noise(i*19+frame)*reveal)|0,h=2+(noise(i*23+frame)*26)|0,dx=(noise(i*31+frame)-.5)*amp;g.drawImage(source,0,y,W,h,dx,y,W,h)}
+ g.globalCompositeOperation='screen';g.globalAlpha=.18+.16*intensity;const split=3+Math.round(edge*10);g.drawImage(source,0,0,W,H,split,0,W,H);g.globalCompositeOperation='source-over';g.globalAlpha=.24;for(let y=0;y<reveal;y+=4){g.fillStyle=y%8?'rgba(0,220,255,.12)':'rgba(255,0,88,.10)';g.fillRect(0,y,W,1)}g.restore();
 }
 
 const ENGINES={grass,particles,liquid,pixel,glitch};
 export const V3_EFFECT_METHODS=new Set(Object.keys(ENGINES));
-export function renderV3Effect(out,source,{method='particles',progress=1,time=0,intensity=.3,size=42,edge=.45}={}){const fn=ENGINES[method];if(!fn)return false;fn(out,source,{progress:clamp(progress),time:Number.isFinite(time)?time:0,intensity:clamp(intensity),size,edge:clamp(edge)});return true}
-export function effectEngineSnapshot(method){return{method,engine:ENGINES[method]?'native-v3-canvas-engine':'legacy-technique',live:!!ENGINES[method]}}
+export function renderV3Effect(out,source,{method='particles',progress=1,time=0,intensity=.3,size=42,edge=.45,options={}}={}){const fn=ENGINES[method];if(!fn)return false;fn(out,source,{progress:clamp(progress),time:Number.isFinite(time)?time:0,intensity:clamp(intensity),size,edge:clamp(edge),options});return true}
+export function effectEngineSnapshot(method){return{method,engine:ENGINES[method]?'donor-derived-v3-engine':'legacy-technique',live:!!ENGINES[method]}}
+export function effectToolPoint(method,p,W=1024,H=512){p=clamp(p);if(method==='grass')return{x:80+p*(W-160),y:H*(.78-.5*Math.sin(p*Math.PI))};if(method==='particles')return{x:W*(.5+.38*Math.cos(p*Math.PI*2)),y:H*(.5+.32*Math.sin(p*Math.PI*2))};if(method==='liquid')return{x:W*(.15+.7*p),y:H*(.5+.2*Math.sin(p*Math.PI*4))};if(method==='pixel')return{x:W*(.15+.7*p),y:H*(.2+.6*((Math.floor(p*7)%7)/6))};if(method==='glitch')return{x:W*(.1+.8*p),y:H*(.15+.7*noise(Math.floor(p*40)))};return{x:W*p,y:H*.5}}
