@@ -50,7 +50,7 @@ export class JobManager{
   const finalP=forceFinal||preview?1:p,t=job.temp.getContext('2d');t.clearRect(0,0,1024,512);
   if(V3_EFFECT_METHODS.has(job.method)){
    const live=job.type==='video'&&(job.activated||job.previewing),time=live?Number(job.media?.currentTime||0):(forceFinal?(job.frozenEffectTime||0):Number(performance.now()/1000));if(forceFinal&&!live&&!job.frozenEffectTime)job.frozenEffectTime=time;
-   renderV3Effect(job.effect,job.source,{method:job.method,progress:finalP,time,intensity:wet,size,edge,options:job.effectOptions||{}});t.drawImage(job.effect,0,0);job.effectFrames=(job.effectFrames||0)+1;job.lastEffect=effectEngineSnapshot(job.method);
+   renderV3Effect(job.effect,job.source,{method:job.method,progress:finalP,time,intensity:wet,size,edge,options:{...(job.effectOptions||{}),live}});t.drawImage(job.effect,0,0);job.effectFrames=(job.effectFrames||0)+1;job.lastEffect=effectEngineSnapshot(job.method);
   }else{
    drawTechniqueMask(job.mask,{progress:finalP,method:job.method,size,edge});const mg=job.mask.getContext('2d'),completion=forceFinal||preview?1:clamp((p-.86)/.14);if(completion>0){mg.save();mg.globalAlpha=ease(completion);mg.fillStyle='#fff';mg.fillRect(0,0,job.mask.width,job.mask.height);mg.restore()}t.drawImage(job.source,0,0);t.globalCompositeOperation='destination-in';t.drawImage(job.mask,0,0);t.globalCompositeOperation='source-over';edgeBlend(t,1024,512);job.lastEffect=effectEngineSnapshot(job.method);
   }
