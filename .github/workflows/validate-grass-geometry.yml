@@ -1,0 +1,64 @@
+name: Validate Grass Geometry
+
+on:
+  push:
+    branches: [agent/logo-crew-v3-grass-geometry-fix]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  grass-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout isolated Grass branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/logo-crew-v3-grass-geometry-fix
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Install and build
+        run: |
+          npm install
+          npm run build
+          node --check src/v3/donors/grass/grass-original-core.js
+          node --check src/v3/adapters/grass-adapter.js
+          node --check src/v23-jobs.js
+          node --check scripts/visual-check-grass-geometry.mjs
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start isolated V3 preview
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4178 > /tmp/v3-grass-geometry.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/v3-grass-geometry.log; exit 1
+      - name: Grass portrait quadrant regression
+        env:
+          PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
+        run: node scripts/visual-check-grass-geometry.mjs
+      - name: Record isolation diff
+        if: always()
+        run: |
+          mkdir -p artifacts
+          git fetch origin agent/logo-crew-v3-original-effects:refs/remotes/origin/agent/logo-crew-v3-original-effects || true
+          git fetch origin agent/logo-crew-v3:refs/remotes/origin/agent/logo-crew-v3 || true
+          {
+            echo "branch=$(git branch --show-current)"
+            echo "head=$(git rev-parse HEAD)"
+            echo "base_original_effects=93144fca9567a75928df06079092e46d939d7ef0"
+            echo "--- diff from original-effects ---"
+            git diff --stat origin/agent/logo-crew-v3-original-effects...HEAD || true
+            echo "--- stable V3 head ---"
+            git rev-parse origin/agent/logo-crew-v3 || true
+          } > artifacts/grass-geometry-build-info.txt
+      - name: Upload Grass QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paint-your-logo-wall-grass-geometry-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts
+          if-no-files-found: error
