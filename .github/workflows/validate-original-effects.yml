@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: agent/logo-crew-v3-original-effects
+          fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v4
         with: { node-version: 22 }
@@ -26,19 +27,24 @@ jobs:
           npm run build
           node --check src/v3/donors/grass/grass-original-core.js
           node --check src/v3/adapters/grass-adapter.js
+          node --check src/v3/donors/particles/particulate-original-core.js
+          node --check src/v3/adapters/particles-adapter.js
           node --check src/v3-effect-engine.js
           node --check src/v23-jobs.js
           node --check scripts/visual-check-v3.mjs
       - name: Record code provenance and weight
         run: |
           mkdir -p artifacts
+          git fetch origin agent/logo-crew-v3:refs/remotes/origin/agent/logo-crew-v3 || true
           {
             echo "branch=$(git branch --show-current)"
             echo "head=$(git rev-parse HEAD)"
             echo "grass_donor_blob=91b6441f8cb31f6ff79f14a8cc0d4ab375c929a1"
             echo "grass_donor_path=labs/source-experiences/grass-image-processing-pro/source-script.js"
+            echo "particles_donor_blob=2ab38ec69d91c94bd5e63cecf19fa1a11d8b7654"
+            echo "particles_donor_path=labs/source-experiences/particulate-image-pro/source-script.js"
             echo "--- files ---"
-            wc -c src/v3/donors/grass/grass-original-core.js src/v3/adapters/grass-adapter.js src/v3-effect-engine.js src/v23-jobs.js scripts/visual-check-v3.mjs
+            wc -c src/v3/donors/grass/grass-original-core.js src/v3/adapters/grass-adapter.js src/v3/donors/particles/particulate-original-core.js src/v3/adapters/particles-adapter.js src/v3-effect-engine.js src/v23-jobs.js scripts/visual-check-v3.mjs
             echo "--- diff from stable V3 ---"
             git diff --stat origin/agent/logo-crew-v3...HEAD || true
           } | tee artifacts/original-effects-build-info.txt
