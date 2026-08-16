@@ -1,0 +1,88 @@
+name: Validate Effects V2
+
+on:
+  push:
+    branches: [agent/logo-crew-v3-effects-v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  effects-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout isolated Effects V2
+        uses: actions/checkout@v4
+        with:
+          ref: agent/logo-crew-v3-effects-v2
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Install build and syntax validation
+        run: |
+          npm install
+          npm run build
+          node --check src/v3-effect-engine-base.js
+          node --check src/v3-effect-engine.js
+          node --check src/v3/adapters/spectacular-v2-adapters.js
+          node --check src/v3/adapters/audio-analysis.js
+          node --check scripts/visual-check-effects-v2.mjs
+      - name: Install Chromium and FFmpeg
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Generate dynamic video fixtures with real audio
+        run: |
+          mkdir -p artifacts/fixtures
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=5" -f lavfi -i "sine=frequency=180:sample_rate=44100:duration=5" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart artifacts/fixtures/effects-v2-audio.mp4
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=4" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-a.mp4
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc=size=640x360:rate=30:duration=4" -c:v libvpx-vp9 -pix_fmt yuv420p artifacts/fixtures/v23-b.webm
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=4" -vf "hue=h=180:s=1.3" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-c.mp4
+      - name: Start isolated Effects V2 preview
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4178 > /tmp/effects-v2.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/effects-v2.log; exit 1
+      - name: Five new effects visual regression
+        env:
+          PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
+          PYLW_FIXTURES: artifacts/fixtures
+        run: node scripts/visual-check-effects-v2.mjs
+      - name: Grass geometry regression
+        env:
+          PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
+        run: node scripts/visual-check-grass-geometry.mjs
+      - name: Full inherited V3 browser regression
+        env:
+          PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
+          PYLW_FIXTURES: artifacts/fixtures
+        run: |
+          cp scripts/visual-check-v3.mjs /tmp/visual-check-v3-effects-v2.mjs
+          sed -i 's/methods!==13||engineButtons!==5/methods!==18||engineButtons!==10/' /tmp/visual-check-v3-effects-v2.mjs
+          node /tmp/visual-check-v3-effects-v2.mjs
+      - name: Record isolation diff
+        if: always()
+        run: |
+          mkdir -p artifacts
+          git fetch origin agent/logo-crew-v3-original-effects:refs/remotes/origin/agent/logo-crew-v3-original-effects || true
+          git fetch origin agent/logo-crew-v3:refs/remotes/origin/agent/logo-crew-v3 || true
+          {
+            echo "branch=$(git branch --show-current)"
+            echo "head=$(git rev-parse HEAD)"
+            echo "frozen_base=cdc14c2736ee497457da933d03a185c08c02b415"
+            echo "--- diff from original-effects ---"
+            git diff --stat origin/agent/logo-crew-v3-original-effects...HEAD || true
+            echo "--- stable V3 head ---"
+            git rev-parse origin/agent/logo-crew-v3 || true
+          } > artifacts/effects-v2-build-info.txt
+      - name: Upload Effects V2 QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paint-your-logo-wall-effects-v2-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts
+          if-no-files-found: error
