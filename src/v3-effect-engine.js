@@ -1,5 +1,6 @@
 import {V3_EFFECT_METHODS as BASE_METHODS,renderV3Effect as renderBaseEffect,effectEngineSnapshot as baseSnapshot,effectToolPoint as baseToolPoint} from './v3-effect-engine-base.js';
-import {renderShapeMatrixAdapter,shapeMatrixSnapshot,renderEnergyShieldAdapter,energyShieldSnapshot,renderHologramAdapter,hologramSnapshot,renderSmearAdapter,smearSnapshot,renderAudioReactiveAdapter,audioReactiveSnapshot} from './v3/adapters/spectacular-v2-adapters.js';
+import {renderShapeMatrixAdapter,shapeMatrixSnapshot,renderHologramAdapter,hologramSnapshot,renderSmearAdapter,smearSnapshot,renderAudioReactiveAdapter,audioReactiveSnapshot} from './v3/adapters/spectacular-v2-adapters.js';
+import {renderEnergyShieldAdapter,energyShieldSnapshot} from './v3/adapters/energy-shield-adapter.js';
 import {audioOptionsForSource} from './v3/adapters/audio-analysis.js';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const EXTRA={shapeMatrix:renderShapeMatrixAdapter,energyShield:renderEnergyShieldAdapter,hologram:renderHologramAdapter,smear:renderSmearAdapter,audioReactive:renderAudioReactiveAdapter};
