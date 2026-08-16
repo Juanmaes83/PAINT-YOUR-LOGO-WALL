@@ -59,28 +59,43 @@ Preserved donor logic:
 - Canonical defaults (radius 193, strength 72, attract, smoothstep, spring/follow parameters, tail settings).
 - The original library renders through SVG `feDisplacementMap`; the V3 adapter preserves its displacement-field math and maps it to the mural canvas so the result becomes real CanvasTexture pixels. This is a rendering-adapter, not a claim of pixel-identical SVG rasterization.
 
-Integration sizes from CI:
-- `src/v3/donors/liquid/liquid-distort-original-core.js`: 3,117 bytes.
-- `src/v3/adapters/liquid-adapter.js`: 1,502 bytes.
-- Full measured original-effects code set at this checkpoint: 48,120 bytes.
-
 Verified by workflow run `31932993691` (SUCCESS):
 - Build: SUCCESS, 0 npm vulnerabilities.
-- Liquid preview hash `1208466844`, distinct from Grass/Particles/Pixel/Glitch.
 - Live EDIT Liquid: video `2.581268 → 0.184780` (loop wrapped), output hash `3207012307 → 1018361173`.
 - Story Liquid: video `2.696186 → 0` (loop wrapped), output hash `3487688999 → 2603861886`.
-- Three-video cumulative story and Save/Load passed with no browser errors.
-- Evidence artifact `paint-your-logo-wall-original-effects-16-1`, ID `9259869159`, ZIP `4,599,819` bytes, digest `sha256:5ee3a78467c315848f7fa250be75e56fdf4a13f781d4b9a1b16075bd0eafa3a1`.
-- Visual evidence reviewed: `liquid-original-library.png`, `liquid-original-edit-live.png`, `liquid-original-live-video.png`; the distortion field is visible and the three finished video works coexist horizontally.
+- Evidence artifact ID `9259869159`, ZIP `4,599,819` bytes.
 
-## PIXEL / VOXEL — 🟡 DONOR INSPECTED / INTEGRATION NEXT
+## PIXEL / PIXELTRANSITION — ✅ OK
 
 Canonical repository: `Juanmaes83/PixelTransition` (`main`), repo tree `2651c9d5dc53d895cb7b3d721ddb9bdb1669f9ba`.
-Important finding: this donor is an original **grid/pixel transition engine**, not a 3D voxelizer. Its core `Overlay` builds a rows×columns cell matrix and GSAP animates cell `scaleY`/opacity with configurable transform origin and stagger.
+Important finding: this donor is an original **grid/pixel transition engine**, not a 3D voxelizer. Runtime therefore records `true3DVoxel: false` rather than mislabelling it.
 
-Canonical demo selected for the V3 Pixel effect:
-- `js/demo1/index.js`, blob `deaf8c491a3cbbe325128a711a18f15af58bfb4a`, 4,538 bytes.
-- configuration: `rows: 8`, `columns: 14`, duration `0.4`, `power3.inOut`, row-based stagger with random 0–5 offset.
-- shared cell engine: `js/demo1/overlay.js`, blob `1f41e22d989e4bc1774a69a93b4f0fe94815e0ee`, 3,894 bytes.
+Canonical demo:
+- controller `js/demo1/index.js`, blob `deaf8c491a3cbbe325128a711a18f15af58bfb4a`, 4,538 bytes.
+- cell engine `js/demo1/overlay.js`, blob `1f41e22d989e4bc1774a69a93b4f0fe94815e0ee`, 3,894 bytes.
+- topology: 8 rows × 14 columns, duration 0.4 s, vertical `scaleY`/opacity reveal, top/bottom transform origins and row-based stagger with random 0–5 offset.
 
-The V3 adaptation will preserve this grid/cell/stagger/scaleY transition topology while filling each cell with the current source image/video pixels. It will be labelled PixelTransition, not falsely described as a true 3D voxel engine.
+Integration:
+- `src/v3/donors/pixel/pixel-transition-original-core.js`: 2,832 bytes.
+- `src/v3/adapters/pixel-adapter.js`: 1,451 bytes.
+- Canvas adaptation fills the donor's animated cells with the corresponding current source image/video region while preserving its cell topology and stagger mechanics.
+
+Verified by workflow run `31933349815` (SUCCESS), head `e49777b4e1e8e43f3713585f9495c5ee9db06c2c`:
+- Build: SUCCESS, 0 npm vulnerabilities.
+- Total measured effect/integration/QA code at this checkpoint: 52,804 bytes.
+- Pixel preview hash `1848678556`, distinct from the other four engines.
+- Live EDIT PixelTransition: video `0 → 1.629857`, output hash `1848678556 → 2897338559`.
+- Story PixelTransition: video `2.707526 → 0` (loop wrapped), output hash `2014870289 → 2324673126`.
+- Three-video cumulative story + Save/Load passed, browser errors `[]`.
+- Evidence artifact `paint-your-logo-wall-original-effects-22-1`, ID `9259970015`, ZIP `3,432,627` bytes, digest `sha256:f1755b536d6af399513f47878d59157b61e2180537aa9acc20911ef381119050`.
+- Visual evidence personally reviewed: `pixel-original-transition.png`, `pixel-original-edit-live.png`, `pixel-original-live-video.png`. The 8×14 cell structure is visible and the final live video coexists with Grass and Particles on the horizontal story wall.
+
+## GLITCH — 🔵 NEXT / CANONICAL SOURCE IDENTIFIED
+
+Canonical source:
+- Repository: `Juanmaes83/escaparates-pro`
+- Ref: `master`
+- Directory: `labs/source-experiences/glitchify-image-pro`
+- source script: `source-script.js`, blob `bfbfdd31060d04ff88c2b05dc9ae82162a12c192`, 85,474 bytes.
+
+The donor is a real image-processing pipeline, not the temporary V3 slice approximation. Its effect manager chains Color Shift → Wave Deform → Displacement → Pixel Sort → Data Corruption. Default visible donor state enables Color Shift and Displacement. Glitch must not be marked OK until those exact default processing algorithms are extracted, connected to image/video, provenance asserted, pixel motion verified, screenshots inspected and the full regression suite passes.
