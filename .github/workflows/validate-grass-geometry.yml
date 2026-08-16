@@ -11,7 +11,7 @@ permissions:
 jobs:
   grass-geometry:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Checkout isolated Grass branch
         uses: actions/checkout@v4
@@ -29,8 +29,18 @@ jobs:
           node --check src/v3/adapters/grass-adapter.js
           node --check src/v23-jobs.js
           node --check scripts/visual-check-grass-geometry.mjs
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+          node --check scripts/visual-check-v3.mjs
+      - name: Install Chromium and FFmpeg
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Generate dynamic media fixtures
+        run: |
+          mkdir -p artifacts/fixtures
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=4" -vf "hue=h=0:s=1" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-a.mp4
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc=size=640x360:rate=30:duration=4" -vf "hue=h=90:s=1.2" -c:v libvpx-vp9 -pix_fmt yuv420p artifacts/fixtures/v23-b.webm
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=4" -vf "hue=h=180:s=1.3" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-c.mp4
       - name: Start isolated V3 preview
         run: |
           npm run preview -- --host 127.0.0.1 --port 4178 > /tmp/v3-grass-geometry.log 2>&1 &
@@ -40,6 +50,11 @@ jobs:
         env:
           PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
         run: node scripts/visual-check-grass-geometry.mjs
+      - name: Full V3 original-effects browser regression
+        env:
+          PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
+          PYLW_FIXTURES: artifacts/fixtures
+        run: npm run verify:browser
       - name: Record isolation diff
         if: always()
         run: |
