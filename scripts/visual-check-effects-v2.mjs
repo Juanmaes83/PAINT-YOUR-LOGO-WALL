@@ -1,0 +1,24 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs';import path from 'node:path';
+const url=process.env.PYLW_URL||'http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/';
+const fixtures=process.env.PYLW_FIXTURES||path.resolve('artifacts/fixtures');
+fs.mkdirSync('artifacts/effects-v2',{recursive:true});
+const video=path.join(fixtures,'effects-v2-audio.mp4');if(!fs.existsSync(video))throw new Error(`Missing ${video}`);
+const svg='<svg xmlns="http://www.w3.org/2000/svg" width="640" height="960"><rect width="640" height="960" fill="#120f22"/><circle cx="160" cy="210" r="120" fill="#ff4f8b"/><rect x="320" y="90" width="220" height="240" rx="38" fill="#49d8ff"/><path d="M80 520L320 390L560 520L320 700Z" fill="#ffd758"/><text x="320" y="845" text-anchor="middle" font-family="Arial" font-size="94" font-weight="700" fill="#f7f3e9">V2</text></svg>';
+const original=['grass','particles','liquid','pixel','glitch'],fresh=['shapeMatrix','energyShield','hologram','smear','audioReactive'],all=[...original,...fresh];
+const browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1720,height:1020}}),errors=[];page.on('pageerror',e=>errors.push(String(e)));
+async function select(i){await page.locator('.job-row').nth(i).click();await page.waitForTimeout(180)}
+async function set(i,m){await select(i);await page.locator(`[data-method="${m}"]`).click();await page.waitForTimeout(900)}
+async function hash(i){return page.evaluate(i=>{const d=window.__PYLW_JOB_MANAGER__.jobs[i].out.getContext('2d').getImageData(0,0,1024,512).data;let h=2166136261,non=0;for(let p=0;p<d.length;p+=16){h^=(d[p]+d[p+1]*3+d[p+2]*7+d[p+3]*11)&255;h=Math.imul(h,16777619);if(d[p+3]>8)non++}return{hash:h>>>0,non}},i)}
+try{
+ await page.goto(url,{waitUntil:'networkidle'});await page.waitForFunction(()=>window.__PYLW_V3__&&window.__PYLW_JOB_MANAGER__);
+ const methods=await page.locator('#method-grid [data-method]').count(),engines=await page.locator('#method-grid .engine-method').count();if(methods!==18||engines!==10)throw new Error(`registry ${methods}/${engines}`);
+ await page.setInputFiles('#asset-upload',{name:'portrait-v2.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svg)});await page.waitForFunction(()=>window.__PYLW_V3__?.jobs===1);
+ const hashes={},snaps={};for(const m of all){await set(0,m);const h=await hash(0),s=await page.evaluate(()=>window.__PYLW_V3__.jobsDetail[0].lastEffect);if(h.non<900)throw new Error(`${m} blank ${JSON.stringify(h)}`);hashes[m]=h.hash;snaps[m]=s;if(fresh.includes(m))await page.screenshot({path:`artifacts/effects-v2/${m}.png`,fullPage:true})}
+ if(new Set(Object.values(hashes)).size<9)throw new Error(`not distinct ${JSON.stringify(hashes)}`);
+ const expected={shapeMatrix:'derived-video-dither-ascii-shape-matrix',energyShield:'derived-force-shield-hex-materialization',hologram:'derived-hologram-volume-reconstruction',smear:'derived-image-drag-temporal-smear',audioReactive:'derived-audio-based-image-distortion'};for(const[m,e]of Object.entries(expected))if(snaps[m]?.engine!==e)throw new Error(`${m} provenance ${JSON.stringify(snaps[m])}`);
+ if(snaps.grass?.engine!=='original-escaparates-pro'||snaps.particles?.engine!=='original-escaparates-pro'||snaps.liquid?.engine!=='original-liquiddistorteverything'||snaps.pixel?.engine!=='original-pixeltransition')throw new Error('original engines regressed');
+ await page.setInputFiles('#asset-upload',video);await page.waitForFunction(()=>window.__PYLW_V3__?.jobs===2,{timeout:20000});await set(1,'audioReactive');await page.waitForTimeout(1600);const a=await hash(1),a0=await page.evaluate(()=>{const j=window.__PYLW_JOB_MANAGER__.jobs[1];return{source:j._audioReactiveSource,level:j._audioReactiveLevel,time:j.media?.currentTime||0,paused:j.media?.paused}});await page.waitForTimeout(1200);const b=await hash(1),a1=await page.evaluate(()=>{const j=window.__PYLW_JOB_MANAGER__.jobs[1];return{source:j._audioReactiveSource,level:j._audioReactiveLevel,time:j.media?.currentTime||0,paused:j.media?.paused}});if(a1.source!=='media-element-analyser'||a1.paused||Math.abs(a1.time-a0.time)<.03||a.hash===b.hash||Math.max(a0.level||0,a1.level||0)<=.001)throw new Error(`audio not live ${JSON.stringify({a,b,a0,a1})}`);await page.screenshot({path:'artifacts/effects-v2/audioReactive-live-video.png',fullPage:true});
+ await set(0,'shapeMatrix');await page.click('#save-project');await page.waitForTimeout(250);await set(0,'brush');await page.click('#load-project');await page.waitForFunction(()=>window.__PYLW_V3__?.jobsDetail?.[0]?.method==='shapeMatrix',{timeout:15000});
+ if(errors.length)throw new Error(errors.join(' | '));const report={url,methods,engines,hashes,snaps,audio:{before:a0,after:a1},final:await page.evaluate(()=>window.__PYLW_V3__),errors};fs.writeFileSync('artifacts/effects-v2/report.json',JSON.stringify(report,null,2));console.log('EFFECTS V2 VISUAL QA PASS');
+}finally{await browser.close()}
