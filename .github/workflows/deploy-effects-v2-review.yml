@@ -1,6 +1,9 @@
 name: Deploy Effects V2 Review
 
 on:
+  push:
+    branches: [agent/logo-crew-v3-effects-v2]
+    paths: [.github/workflows/deploy-effects-v2-review.yml]
   workflow_dispatch:
 
 permissions:
