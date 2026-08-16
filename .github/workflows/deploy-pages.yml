@@ -255,12 +255,12 @@ jobs:
         working-directory: v3-original-src
         run: |
           npm run preview -- --host 127.0.0.1 --port 4179 > /tmp/v3-original.log 2>&1 &
-          for i in {1..30}; do curl -fsS http://127.0.0.1:4179/PAINT-YOUR-LOGO-WALL/v3/ >/dev/null && exit 0; sleep 1; done
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4179/PAINT-YOUR-LOGO-WALL/v3-original-effects/ >/dev/null && exit 0; sleep 1; done
           cat /tmp/v3-original.log; exit 1
       - name: QA V3 original-effects review
         working-directory: v3-original-src
         env:
-          PYLW_URL: http://127.0.0.1:4179/PAINT-YOUR-LOGO-WALL/v3/
+          PYLW_URL: http://127.0.0.1:4179/PAINT-YOUR-LOGO-WALL/v3-original-effects/
           PYLW_FIXTURES: artifacts/fixtures
         run: npm run verify:browser
       - name: Upload V3 original-effects QA evidence
