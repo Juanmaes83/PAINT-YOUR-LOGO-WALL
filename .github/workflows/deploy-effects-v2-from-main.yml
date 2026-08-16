@@ -1,0 +1,143 @@
+name: Deploy Effects V2 From Main
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/deploy-effects-v2-from-main.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout V1
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v1, path: v1-src }
+      - name: Checkout V2
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v2, path: v2-src }
+      - name: Checkout V2.1
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v2-1, path: v21-src }
+      - name: Checkout V2.2
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v2-2, path: v22-src }
+      - name: Checkout V2.3
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v2-3, path: v23-src }
+      - name: Checkout V3 stable
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v3, path: v3-src }
+      - name: Checkout V3 original-effects
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v3-original-effects, path: v3-original-src }
+      - name: Checkout Effects V2
+        uses: actions/checkout@v4
+        with: { ref: agent/logo-crew-v3-effects-v2, path: effects-v2-src }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build frozen versions
+        run: |
+          for d in v1-src v2-src v21-src v22-src v23-src v3-src v3-original-src; do
+            echo "=== BUILD $d ==="
+            (cd "$d" && npm install && GITHUB_PAGES=true npm run build)
+          done
+
+      - name: Build isolated Effects V2 for exact route
+        working-directory: effects-v2-src
+        env:
+          GITHUB_PAGES: true
+          PYLW_BASE: /PAINT-YOUR-LOGO-WALL/v3-effects-v2/
+        run: |
+          npm install
+          npm run build
+          node --check src/main.js
+          node --check src/v3-effect-engine.js
+          node --check src/v3/adapters/audio-analysis.js
+          node --check src/v3/adapters/energy-shield-adapter.js
+          node --check src/v3/adapters/hologram-v2-adapter.js
+
+      - name: Install browser QA dependencies
+        working-directory: effects-v2-src
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p artifacts/fixtures
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=5" -f lavfi -i "sine=frequency=180:sample_rate=44100:duration=5" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart artifacts/fixtures/effects-v2-audio.mp4
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=4" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-a.mp4
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc=size=640x360:rate=30:duration=4" -c:v libvpx-vp9 -pix_fmt yuv420p artifacts/fixtures/v23-b.webm
+          ffmpeg -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=4" -vf "hue=h=180:s=1.3" -c:v libx264 -pix_fmt yuv420p -movflags +faststart artifacts/fixtures/v23-c.mp4
+
+      - name: QA built Effects V2 exact Pages subpath
+        working-directory: effects-v2-src
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4180 > /tmp/effects-v2-pages.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4180/PAINT-YOUR-LOGO-WALL/v3-effects-v2/ >/dev/null && break; sleep 1; done
+          PYLW_URL=http://127.0.0.1:4180/PAINT-YOUR-LOGO-WALL/v3-effects-v2/ PYLW_FIXTURES=artifacts/fixtures node scripts/visual-check-effects-v2.mjs
+
+      - name: Compose complete versioned Pages site
+        run: |
+          mkdir -p deploy-site/v2 deploy-site/v2-1 deploy-site/v2-2 deploy-site/v2-3 deploy-site/v3 deploy-site/v3-original-effects deploy-site/v3-effects-v2
+          cp -R v1-src/dist/. deploy-site/
+          cp -R v2-src/dist/. deploy-site/v2/
+          cp -R v21-src/dist/. deploy-site/v2-1/
+          cp -R v22-src/dist/. deploy-site/v2-2/
+          cp -R v23-src/dist/. deploy-site/v2-3/
+          cp -R v3-src/dist/. deploy-site/v3/
+          cp -R v3-original-src/dist/. deploy-site/v3-original-effects/
+          cp -R effects-v2-src/dist/. deploy-site/v3-effects-v2/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: effects-v2-main-pages-${{ github.run_attempt }}
+          path: deploy-site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: effects-v2-main-pages-${{ github.run_attempt }}
+
+      - name: Wait for public Effects V2 route
+        run: |
+          for i in {1..60}; do
+            curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v3-effects-v2/ >/dev/null && exit 0
+            sleep 3
+          done
+          exit 1
+
+      - name: QA public Effects V2
+        working-directory: effects-v2-src
+        env:
+          PYLW_URL: https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v3-effects-v2/
+          PYLW_FIXTURES: artifacts/fixtures
+        run: node scripts/visual-check-effects-v2.mjs
+
+      - name: Smoke public frozen routes
+        run: |
+          curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v3/ >/dev/null
+          curl -fsS https://juanmaes83.github.io/PAINT-YOUR-LOGO-WALL/v3-original-effects/ >/dev/null
+
+      - name: Upload public QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paint-your-logo-wall-effects-v2-main-public-${{ github.run_attempt }}
+          path: effects-v2-src/artifacts
+          if-no-files-found: warn
