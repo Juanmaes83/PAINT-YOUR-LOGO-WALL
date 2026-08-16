@@ -3,7 +3,7 @@
 Safety branch: `agent/logo-crew-v3-original-effects`
 Stable V3 remains: `agent/logo-crew-v3`
 
-## GRASS — OK
+## GRASS — ✅ OK
 
 Canonical source:
 - Repository: `Juanmaes83/escaparates-pro`
@@ -13,40 +13,55 @@ Canonical source:
 - Original source size: 19,112 bytes
 
 Integration:
-- Source-faithful extracted core: `src/v3/donors/grass/grass-original-core.js` — 5,387 bytes in verified run.
-- Thin runtime adapter: `src/v3/adapters/grass-adapter.js` — 2,740 bytes in verified run.
-- Runtime registry: `src/v3-effect-engine.js`.
-- Live-media capability signal: `src/v23-jobs.js`.
-- Still rendering: original algorithm at 512×256 donor input → 1024×512 donor output.
-- Live video: the same original donor algorithm on 96×48 sampled live frames → 192×96 donor output, fitted to the artwork, capped at 12 donor renders/s to preserve responsive video playback. This is a live adaptation of the original algorithm, not a claim of full-resolution pixel identity on every video frame.
+- Source-faithful extracted core: `src/v3/donors/grass/grass-original-core.js`
+- Thin runtime adapter: `src/v3/adapters/grass-adapter.js`
+- Runtime reports `engine: original-escaparates-pro` plus exact donor path/blob.
+- Image and live-video pixel motion verified in Chromium.
 
-Verified gate:
-1. Build and syntax checks: PASS.
-2. Runtime provenance: `engine: original-escaparates-pro`, exact donor blob/path: PASS.
-3. Grass preview non-empty and visually distinct: PASS.
-4. Video `currentTime` advances while Grass output pixel hash changes: PASS in edit preview and story.
-5. Story mode activates the Grass video and prior completed videos remain live: PASS.
-6. Save/load regression: PASS.
-7. Screenshots + JSON QA report uploaded as Actions artifact: PASS.
+Evidence gate passed:
+1. Build and syntax checks green.
+2. Canonical donor provenance asserted at runtime.
+3. Preview non-empty and visually distinct.
+4. Real video currentTime and Grass output pixel hash both advance.
+5. Story keeps prior jobs alive.
+6. Save/load regression green.
+7. Screenshots + JSON report uploaded as Actions artifact.
 
-Verified workflow:
-- Run: `31913705448`
-- Verified head: `83f08f9de93b52e46518ccec8fa0328848195adc`
-- Artifact: `paint-your-logo-wall-original-effects-4-1`
-- Artifact ID: `9254386975`
-- Artifact size: 2,928,174 bytes
-- Artifact digest: `sha256:9dfcc15dbd3cef8915e6ef57d67d19947928bfc8740462d78140bfbf3ee80966`
-- Evidence: `grass-original-escaparates-pro.png`, `grass-original-edit-live.png`, `grass-original-live-video.png`, `v3-report.json`.
+## PARTICLES — ✅ OK
 
-Observed Grass live proof from `v3-report.json`:
-- Edit preview output hash: `1925221892 → 1775733402`; video time `3.145712 → 0.873128` (loop wrap).
-- Story output hash: `2679148539 → 4139948917`; video time `1.904124 → 3.909768`.
-
-## PARTICLES — NEXT
-
-Canonical candidate already identified in Escaparates Pro:
+Canonical source:
+- Repository: `Juanmaes83/escaparates-pro`
+- Ref: `master`
 - Path: `labs/source-experiences/particulate-image-pro/source-script.js`
 - Blob SHA: `2ab38ec69d91c94bd5e63cecf19fa1a11d8b7654`
 - Original source size: 16,499 bytes
 
-Particles must pass the same source/provenance/build/live-video/visual-evidence gate before being marked OK.
+Preserved donor behavior:
+- Particle creation from sampled source pixels.
+- 2,000 minimum / 8,000 maximum target particles.
+- Four-edge spawn topology.
+- Per-particle friction, spring strength, wander, opacity and rounded-pixel geometry.
+- Blow / Magnet / Freeze modes.
+- Original dark trail background behavior.
+- Live-video adaptation updates each particle RGB from the current video frame while retaining donor physics.
+
+Integration:
+- Source-faithful extracted core: `src/v3/donors/particles/particulate-original-core.js`
+- Thin runtime adapter: `src/v3/adapters/particles-adapter.js`
+- Runtime reports `engine: original-escaparates-pro` plus exact donor path/blob.
+
+Verified by workflow run `31932687546` (SUCCESS):
+- Build: SUCCESS, 0 npm vulnerabilities.
+- Particles preview hash: `3932531243` (distinct from all other engines).
+- Live EDIT Particles: video `1.474255 → 3.164786`, output hash `1162732413 → 2360940038`.
+- Story Particles video: output hash `3109754827 → 3417071853`, currentTime `0.888481 → 2.773569`.
+- Three-video cumulative story and Save/Load regression passed.
+- Evidence artifact: `paint-your-logo-wall-original-effects-10-1`, artifact ID `9259790238`, ZIP size `4,094,768` bytes, digest `sha256:3849ffc9034cb43bf531de82bd274f622e2bad356f81ed6a9fc26c9691c96e5c`.
+- Visual evidence reviewed: `particles-original-escaparates-pro.png`, `particles-original-edit-live.png`, `particles-original-story.png`, `particles-original-live-video.png`.
+
+## LIQUID — 🔵 NEXT / DONOR IDENTIFIED
+
+Canonical repository identified: `Juanmaes83/liquiddistorteverything` (`main`).
+The published donor is a real library, not a demo-only approximation. Its built ESM is `dist/liquid-distort.js` (blob `fdbde364975183230270b9d8507cb9ad033cd7c6`, 10,045 bytes), backed by TypeScript source modules for LiquidDistort, falloff, modes, physics and shapes.
+
+Liquid must not be marked OK until its donor math/physics is integrated, runtime provenance is exact, image/video pixels are verified, screenshots are reviewed, and the same regression suite is green.
