@@ -18,15 +18,6 @@ Integration:
 - Runtime reports `engine: original-escaparates-pro` plus exact donor path/blob.
 - Image and live-video pixel motion verified in Chromium.
 
-Evidence gate passed:
-1. Build and syntax checks green.
-2. Canonical donor provenance asserted at runtime.
-3. Preview non-empty and visually distinct.
-4. Real video currentTime and Grass output pixel hash both advance.
-5. Story keeps prior jobs alive.
-6. Save/load regression green.
-7. Screenshots + JSON report uploaded as Actions artifact.
-
 ## PARTICLES — ✅ OK
 
 Canonical source:
@@ -45,23 +36,51 @@ Preserved donor behavior:
 - Original dark trail background behavior.
 - Live-video adaptation updates each particle RGB from the current video frame while retaining donor physics.
 
-Integration:
-- Source-faithful extracted core: `src/v3/donors/particles/particulate-original-core.js`
-- Thin runtime adapter: `src/v3/adapters/particles-adapter.js`
-- Runtime reports `engine: original-escaparates-pro` plus exact donor path/blob.
-
 Verified by workflow run `31932687546` (SUCCESS):
 - Build: SUCCESS, 0 npm vulnerabilities.
-- Particles preview hash: `3932531243` (distinct from all other engines).
 - Live EDIT Particles: video `1.474255 → 3.164786`, output hash `1162732413 → 2360940038`.
-- Story Particles video: output hash `3109754827 → 3417071853`, currentTime `0.888481 → 2.773569`.
-- Three-video cumulative story and Save/Load regression passed.
-- Evidence artifact: `paint-your-logo-wall-original-effects-10-1`, artifact ID `9259790238`, ZIP size `4,094,768` bytes, digest `sha256:3849ffc9034cb43bf531de82bd274f622e2bad356f81ed6a9fc26c9691c96e5c`.
-- Visual evidence reviewed: `particles-original-escaparates-pro.png`, `particles-original-edit-live.png`, `particles-original-story.png`, `particles-original-live-video.png`.
+- Story Particles: output hash `3109754827 → 3417071853`, currentTime `0.888481 → 2.773569`.
+- Evidence artifact ID `9259790238`, ZIP `4,094,768` bytes.
 
-## LIQUID — 🔵 NEXT / DONOR IDENTIFIED
+## LIQUID — ✅ OK
 
-Canonical repository identified: `Juanmaes83/liquiddistorteverything` (`main`).
-The published donor is a real library, not a demo-only approximation. Its built ESM is `dist/liquid-distort.js` (blob `fdbde364975183230270b9d8507cb9ad033cd7c6`, 10,045 bytes), backed by TypeScript source modules for LiquidDistort, falloff, modes, physics and shapes.
+Canonical source:
+- Repository: `Juanmaes83/liquiddistorteverything`
+- Ref: `main`
+- Built donor: `dist/liquid-distort.js`
+- Blob SHA: `fdbde364975183230270b9d8507cb9ad033cd7c6`
+- Built donor size: 10,045 bytes
+- TypeScript implementation also inspected (`LiquidDistort.ts`, `falloff.ts`, `modes.ts`, `physics.ts`, `shapes.ts`).
 
-Liquid must not be marked OK until its donor math/physics is integrated, runtime provenance is exact, image/video pixels are verified, screenshots are reviewed, and the same regression suite is green.
+Preserved donor logic:
+- Shapes: circle / ellipse / rect / roundedRect.
+- Falloff: smoothstep / linear / exponential / cosine.
+- Displacement: refract / attract / swirl / ripple / wave.
+- Canonical defaults (radius 193, strength 72, attract, smoothstep, spring/follow parameters, tail settings).
+- The original library renders through SVG `feDisplacementMap`; the V3 adapter preserves its displacement-field math and maps it to the mural canvas so the result becomes real CanvasTexture pixels. This is a rendering-adapter, not a claim of pixel-identical SVG rasterization.
+
+Integration sizes from CI:
+- `src/v3/donors/liquid/liquid-distort-original-core.js`: 3,117 bytes.
+- `src/v3/adapters/liquid-adapter.js`: 1,502 bytes.
+- Full measured original-effects code set at this checkpoint: 48,120 bytes.
+
+Verified by workflow run `31932993691` (SUCCESS):
+- Build: SUCCESS, 0 npm vulnerabilities.
+- Liquid preview hash `1208466844`, distinct from Grass/Particles/Pixel/Glitch.
+- Live EDIT Liquid: video `2.581268 → 0.184780` (loop wrapped), output hash `3207012307 → 1018361173`.
+- Story Liquid: video `2.696186 → 0` (loop wrapped), output hash `3487688999 → 2603861886`.
+- Three-video cumulative story and Save/Load passed with no browser errors.
+- Evidence artifact `paint-your-logo-wall-original-effects-16-1`, ID `9259869159`, ZIP `4,599,819` bytes, digest `sha256:5ee3a78467c315848f7fa250be75e56fdf4a13f781d4b9a1b16075bd0eafa3a1`.
+- Visual evidence reviewed: `liquid-original-library.png`, `liquid-original-edit-live.png`, `liquid-original-live-video.png`; the distortion field is visible and the three finished video works coexist horizontally.
+
+## PIXEL / VOXEL — 🟡 DONOR INSPECTED / INTEGRATION NEXT
+
+Canonical repository: `Juanmaes83/PixelTransition` (`main`), repo tree `2651c9d5dc53d895cb7b3d721ddb9bdb1669f9ba`.
+Important finding: this donor is an original **grid/pixel transition engine**, not a 3D voxelizer. Its core `Overlay` builds a rows×columns cell matrix and GSAP animates cell `scaleY`/opacity with configurable transform origin and stagger.
+
+Canonical demo selected for the V3 Pixel effect:
+- `js/demo1/index.js`, blob `deaf8c491a3cbbe325128a711a18f15af58bfb4a`, 4,538 bytes.
+- configuration: `rows: 8`, `columns: 14`, duration `0.4`, `power3.inOut`, row-based stagger with random 0–5 offset.
+- shared cell engine: `js/demo1/overlay.js`, blob `1f41e22d989e4bc1774a69a93b4f0fe94815e0ee`, 3,894 bytes.
+
+The V3 adaptation will preserve this grid/cell/stagger/scaleY transition topology while filling each cell with the current source image/video pixels. It will be labelled PixelTransition, not falsely described as a true 3D voxel engine.
