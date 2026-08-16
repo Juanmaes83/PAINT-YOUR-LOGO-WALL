@@ -31,6 +31,8 @@ jobs:
           node --check src/v3/adapters/particles-adapter.js
           node --check src/v3/donors/liquid/liquid-distort-original-core.js
           node --check src/v3/adapters/liquid-adapter.js
+          node --check src/v3/donors/pixel/pixel-transition-original-core.js
+          node --check src/v3/adapters/pixel-adapter.js
           node --check src/v3-effect-engine.js
           node --check src/v23-jobs.js
           node --check scripts/visual-check-v3.mjs
@@ -48,8 +50,12 @@ jobs:
             echo "liquid_donor_repo=Juanmaes83/liquiddistorteverything"
             echo "liquid_donor_blob=fdbde364975183230270b9d8507cb9ad033cd7c6"
             echo "liquid_donor_path=dist/liquid-distort.js"
+            echo "pixel_donor_repo=Juanmaes83/PixelTransition"
+            echo "pixel_controller_blob=deaf8c491a3cbbe325128a711a18f15af58bfb4a"
+            echo "pixel_overlay_blob=1f41e22d989e4bc1774a69a93b4f0fe94815e0ee"
+            echo "pixel_donor_path=js/demo1/index.js + js/demo1/overlay.js"
             echo "--- files ---"
-            wc -c src/v3/donors/grass/grass-original-core.js src/v3/adapters/grass-adapter.js src/v3/donors/particles/particulate-original-core.js src/v3/adapters/particles-adapter.js src/v3/donors/liquid/liquid-distort-original-core.js src/v3/adapters/liquid-adapter.js src/v3-effect-engine.js src/v23-jobs.js scripts/visual-check-v3.mjs
+            wc -c src/v3/donors/grass/grass-original-core.js src/v3/adapters/grass-adapter.js src/v3/donors/particles/particulate-original-core.js src/v3/adapters/particles-adapter.js src/v3/donors/liquid/liquid-distort-original-core.js src/v3/adapters/liquid-adapter.js src/v3/donors/pixel/pixel-transition-original-core.js src/v3/adapters/pixel-adapter.js src/v3-effect-engine.js src/v23-jobs.js scripts/visual-check-v3.mjs
             echo "--- diff from stable V3 ---"
             git diff --stat origin/agent/logo-crew-v3...HEAD || true
           } | tee artifacts/original-effects-build-info.txt
