@@ -28,6 +28,8 @@ jobs:
           node --check src/v3-effect-engine-base.js
           node --check src/v3-effect-engine.js
           node --check src/v3/adapters/spectacular-v2-adapters.js
+          node --check src/v3/adapters/energy-shield-adapter.js
+          node --check src/v3/adapters/hologram-v2-adapter.js
           node --check src/v3/adapters/audio-analysis.js
           node --check scripts/visual-check-effects-v2.mjs
       - name: Install Chromium and FFmpeg
@@ -61,9 +63,10 @@ jobs:
           PYLW_URL: http://127.0.0.1:4178/PAINT-YOUR-LOGO-WALL/v3/
           PYLW_FIXTURES: artifacts/fixtures
         run: |
-          cp scripts/visual-check-v3.mjs /tmp/visual-check-v3-effects-v2.mjs
-          sed -i 's/methods!==13||engineButtons!==5/methods!==18||engineButtons!==10/' /tmp/visual-check-v3-effects-v2.mjs
-          node /tmp/visual-check-v3-effects-v2.mjs
+          cp scripts/visual-check-v3.mjs scripts/.visual-check-v3-effects-v2.tmp.mjs
+          sed -i 's/methods!==13||engineButtons!==5/methods!==18||engineButtons!==10/' scripts/.visual-check-v3-effects-v2.tmp.mjs
+          node scripts/.visual-check-v3-effects-v2.tmp.mjs
+          rm -f scripts/.visual-check-v3-effects-v2.tmp.mjs
       - name: Record isolation diff
         if: always()
         run: |
