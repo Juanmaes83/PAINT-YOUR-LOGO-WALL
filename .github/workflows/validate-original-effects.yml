@@ -36,6 +36,12 @@ jobs:
           node --check src/v3-effect-engine.js
           node --check src/v23-jobs.js
           node --check scripts/visual-check-v3.mjs
+      - name: Upload raw-review build bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: paint-your-logo-wall-v3-original-effects-dist-${{ github.run_number }}-${{ github.run_attempt }}
+          path: dist
+          if-no-files-found: error
       - name: Record code provenance and weight
         run: |
           mkdir -p artifacts
