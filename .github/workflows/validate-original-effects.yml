@@ -29,6 +29,8 @@ jobs:
           node --check src/v3/adapters/grass-adapter.js
           node --check src/v3/donors/particles/particulate-original-core.js
           node --check src/v3/adapters/particles-adapter.js
+          node --check src/v3/donors/liquid/liquid-distort-original-core.js
+          node --check src/v3/adapters/liquid-adapter.js
           node --check src/v3-effect-engine.js
           node --check src/v23-jobs.js
           node --check scripts/visual-check-v3.mjs
@@ -43,8 +45,11 @@ jobs:
             echo "grass_donor_path=labs/source-experiences/grass-image-processing-pro/source-script.js"
             echo "particles_donor_blob=2ab38ec69d91c94bd5e63cecf19fa1a11d8b7654"
             echo "particles_donor_path=labs/source-experiences/particulate-image-pro/source-script.js"
+            echo "liquid_donor_repo=Juanmaes83/liquiddistorteverything"
+            echo "liquid_donor_blob=fdbde364975183230270b9d8507cb9ad033cd7c6"
+            echo "liquid_donor_path=dist/liquid-distort.js"
             echo "--- files ---"
-            wc -c src/v3/donors/grass/grass-original-core.js src/v3/adapters/grass-adapter.js src/v3/donors/particles/particulate-original-core.js src/v3/adapters/particles-adapter.js src/v3-effect-engine.js src/v23-jobs.js scripts/visual-check-v3.mjs
+            wc -c src/v3/donors/grass/grass-original-core.js src/v3/adapters/grass-adapter.js src/v3/donors/particles/particulate-original-core.js src/v3/adapters/particles-adapter.js src/v3/donors/liquid/liquid-distort-original-core.js src/v3/adapters/liquid-adapter.js src/v3-effect-engine.js src/v23-jobs.js scripts/visual-check-v3.mjs
             echo "--- diff from stable V3 ---"
             git diff --stat origin/agent/logo-crew-v3...HEAD || true
           } | tee artifacts/original-effects-build-info.txt
