@@ -1,10 +1,11 @@
 import {V3_EFFECT_METHODS as BASE_METHODS,renderV3Effect as renderBaseEffect,effectEngineSnapshot as baseSnapshot,effectToolPoint as baseToolPoint} from './v3-effect-engine-base.js';
-import {renderShapeMatrixAdapter,shapeMatrixSnapshot,renderHologramAdapter,hologramSnapshot,renderSmearAdapter,smearSnapshot,renderAudioReactiveAdapter,audioReactiveSnapshot} from './v3/adapters/spectacular-v2-adapters.js';
+import {renderShapeMatrixAdapter,shapeMatrixSnapshot,renderSmearAdapter,smearSnapshot,renderAudioReactiveAdapter,audioReactiveSnapshot} from './v3/adapters/spectacular-v2-adapters.js';
 import {renderEnergyShieldAdapter,energyShieldSnapshot} from './v3/adapters/energy-shield-adapter.js';
+import {renderHologramV2Adapter,hologramV2Snapshot} from './v3/adapters/hologram-v2-adapter.js';
 import {audioOptionsForSource} from './v3/adapters/audio-analysis.js';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
-const EXTRA={shapeMatrix:renderShapeMatrixAdapter,energyShield:renderEnergyShieldAdapter,hologram:renderHologramAdapter,smear:renderSmearAdapter,audioReactive:renderAudioReactiveAdapter};
-const SNAP={shapeMatrix:shapeMatrixSnapshot,energyShield:energyShieldSnapshot,hologram:hologramSnapshot,smear:smearSnapshot,audioReactive:audioReactiveSnapshot};
+const EXTRA={shapeMatrix:renderShapeMatrixAdapter,energyShield:renderEnergyShieldAdapter,hologram:renderHologramV2Adapter,smear:renderSmearAdapter,audioReactive:renderAudioReactiveAdapter};
+const SNAP={shapeMatrix:shapeMatrixSnapshot,energyShield:energyShieldSnapshot,hologram:hologramV2Snapshot,smear:smearSnapshot,audioReactive:audioReactiveSnapshot};
 export const V3_EFFECT_METHODS=new Set([...BASE_METHODS,...Object.keys(EXTRA)]);
 export function renderV3Effect(out,source,{method='particles',progress=1,time=0,intensity=.3,size=42,edge=.45,options={}}={}){if(!EXTRA[method])return renderBaseEffect(out,source,{method,progress,time,intensity,size,edge,options});const merged=method==='audioReactive'?{...options,...audioOptionsForSource(source,time)}:options;EXTRA[method](out,source,{progress:clamp(progress),time:Number.isFinite(time)?time:0,intensity:clamp(intensity),size,edge:clamp(edge),options:merged});return true}
 export function effectEngineSnapshot(method){return SNAP[method]?SNAP[method]():baseSnapshot(method)}
