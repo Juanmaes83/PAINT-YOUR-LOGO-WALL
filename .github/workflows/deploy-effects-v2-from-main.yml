@@ -85,6 +85,9 @@ jobs:
 
       - name: QA built Effects V2 exact Pages subpath
         working-directory: effects-v2-src
+        env:
+          GITHUB_PAGES: true
+          PYLW_BASE: /PAINT-YOUR-LOGO-WALL/v3-effects-v2/
         run: |
           npm run preview -- --host 127.0.0.1 --port 4180 > /tmp/effects-v2-pages.log 2>&1 &
           for i in {1..30}; do curl -fsS http://127.0.0.1:4180/PAINT-YOUR-LOGO-WALL/v3-effects-v2/ >/dev/null && break; sleep 1; done
